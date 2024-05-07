@@ -67,7 +67,7 @@ class RookCheckmateEnv(gym.Env):
         self._pieces["wRook"] = self._get_random_location()
         self._pieces["wKing"] = self._get_random_location()
         while np.array_equal(self._pieces["wRook"], self._pieces["wKing"]):
-            self.__pieces["wKing"] = self._get_random_location()
+            self._pieces["wKing"] = self._get_random_location()
         self._pieces["bKing"] = self._get_random_location()
         while self._is_threatened(self._pieces["bKing"]):
             self._pieces["bKing"] = self._get_random_location()
@@ -111,7 +111,7 @@ class RookCheckmateEnv(gym.Env):
         return False
     
     def _respond_to_invalid_move(self):
-        return self._get_obs(), -2, False, False, self._get_info()
+        return self._get_obs(), -100, True, False, self._get_info()
     
     def step(self, action):
         """
@@ -145,7 +145,7 @@ class RookCheckmateEnv(gym.Env):
         # Black moves (assuming he cannot win/draw this turn)
         opponent_moves = self._get_legal_bking_moves()
         if len(opponent_moves) == 0: # Black cannot move
-            if self._is_threatened(self.pieces["bKing"]): # Black is in checkmate
+            if self._is_threatened(self._pieces["bKing"]): # Black is in checkmate
                 return self._get_obs(), 100, True, False, self._get_info()
             else: # Black is in stalemate
                 return self._get_obs(), -100, True, False, self._get_info()
