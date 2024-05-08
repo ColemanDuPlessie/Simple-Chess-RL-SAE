@@ -13,6 +13,8 @@ import torch.optim as optim
 
 import envs # Adds RookCheckmate-v0 to gym
 
+device = "cuda" if torch.cuda.is_available() else "cpu"
+
 BOARD_SIZE = 5
 ACTION_SPACE_SIZE = 8+(BOARD_SIZE-1)*4
 
@@ -42,9 +44,9 @@ class ReplayBuffer():
             s_prime_lst.append(s_prime)
             done_mask_lst.append([done_mask])
 
-        return torch.tensor(s_lst, dtype=torch.float), torch.tensor(a_lst), \
-               torch.tensor(r_lst), torch.tensor(s_prime_lst, dtype=torch.float), \
-               torch.tensor(done_mask_lst)
+        return torch.tensor(s_lst, dtype=torch.float).to(device), torch.tensor(a_lst).to(device), \
+               torch.tensor(r_lst).to(device), torch.tensor(s_prime_lst, dtype=torch.float).to(device), \
+               torch.tensor(done_mask_lst).to(device)
     
     def size(self):
         return len(self.buffer)
@@ -86,8 +88,8 @@ def train(q, q_target, memory, optimizer):
 
 def main():
     env = gym.make('RookCheckmate-v0')
-    q = CheckmateQnet()
-    q_target = CheckmateQnet()
+    q = CheckmateQnet().to(device)
+    q_target = CheckmateQnet().to(device)
     q_target.load_state_dict(q.state_dict())
     memory = ReplayBuffer()
 
@@ -102,7 +104,7 @@ def main():
         done = False
 
         while not done:
-            a = q.sample_action(torch.from_numpy(s).float(), epsilon)     
+            a = q.sample_action(torch.from_numpy(s).float().to(device), epsilon)     
             obs, r, done, truncated, info = env.step(a)
             s_prime = np.concatenate(tuple(obs.values()))
             done_mask = 0.0 if done else 1.0

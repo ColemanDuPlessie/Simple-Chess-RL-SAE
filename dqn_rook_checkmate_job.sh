@@ -22,6 +22,7 @@ echo "job is starting on `hostname`"
 
 module load python/3.11.6 # TODO is this right?
 module load anaconda3_gpu
+conda init # TODO is this necessary?
 conda activate gymrl
 
 export TORCH_SHOW_CPP_STACKTRACE=1
@@ -35,4 +36,4 @@ export PYTHONPATH=$PYTHONPATH:/u/cduplessie/Simple-Chess-RL-SAE/
 
 pip3 list
 
-CUDA_VISIBLE_DEVICES=0,1,2,3 srun python3 train_dqn.py
+CUDA_VISIBLE_DEVICES=0,1,2,3 srun python3.6 train_dqn.py
