@@ -1,4 +1,4 @@
-# Implementation taken from minimalRL at https://github.com/seungeunrho/minimalRL/blob/master/dqn.py
+# Implementation of DQN taken from minimalRL at https://github.com/seungeunrho/minimalRL/blob/master/dqn.py
 
 import gym
 import collections
@@ -17,6 +17,7 @@ BOARD_SIZE = 5
 ACTION_SPACE_SIZE = 8+(BOARD_SIZE-1)*4
 
 #Hyperparameters
+num_episodes  = 50000
 learning_rate = 0.0005
 gamma         = 0.98
 buffer_limit  = 50000
@@ -65,7 +66,7 @@ class CheckmateQnet(nn.Module):
         out = self.forward(obs)
         coin = random.random()
         if coin < epsilon:
-            return random.randint(0,1)
+            return random.randrange(ACTION_SPACE_SIZE)
         else : 
             return out.argmax().item()
             
@@ -94,16 +95,16 @@ def main():
     score = 0.0  
     optimizer = optim.Adam(q.parameters(), lr=learning_rate)
 
-    for n_epi in range(10000):
+    for n_epi in range(num_episodes):
         epsilon = max(0.01, 0.08 - 0.01*(n_epi/200)) #Linear annealing from 8% to 1%
         obs, _ = env.reset()
+        s = np.concatenate(tuple(obs.values()))
         done = False
 
         while not done:
-            s = np.concatenate(tuple(obs.values()))
             a = q.sample_action(torch.from_numpy(s).float(), epsilon)     
-            obs_prime, r, done, truncated, info = env.step(a)
-            s_prime = np.concatenate(tuple(obs_prime.values()))
+            obs, r, done, truncated, info = env.step(a)
+            s_prime = np.concatenate(tuple(obs.values()))
             done_mask = 0.0 if done else 1.0
             memory.put((s,a,r/100.0,s_prime, done_mask))
             s = s_prime
@@ -121,6 +122,8 @@ def main():
                                                             n_epi, score/print_interval, memory.size(), epsilon*100))
             score = 0.0
     env.close()
+    
+    torch.save(q, "trained_rook_qnet.pt")
 
 if __name__ == '__main__':
     main()

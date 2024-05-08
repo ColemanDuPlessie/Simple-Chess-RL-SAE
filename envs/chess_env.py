@@ -64,6 +64,8 @@ class RookCheckmateEnv(gym.Env):
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
         
+        self._move_timer = 0
+        
         self._pieces["wRook"] = self._get_random_location()
         self._pieces["wKing"] = self._get_random_location()
         while np.array_equal(self._pieces["wRook"], self._pieces["wKing"]):
@@ -123,8 +125,10 @@ class RookCheckmateEnv(gym.Env):
         """
         piece, direction = self._action_to_direction[action]
         new_location = self._pieces[piece]+direction
+        # print(f"Current position: {self._pieces}\nMove: {piece} to {new_location}")
         if not self._in_bounds(new_location):
             # If move is out-of-bounds, don't move and instead penalize with double the negative reward.
+            print(f"Invalid move (out-of-bounds) at turn {self._move_timer}")
             return self._respond_to_invalid_move()
         
         # TODO check for moving into check?
@@ -134,20 +138,28 @@ class RookCheckmateEnv(gym.Env):
             for i in range(magnitude):
                 space = new_location+unit_move*i
                 if i == 0 and np.array_equal(space, self._pieces["wKing"]):
+                    print(f"Invalid move (into king) at turn {self._move_timer}")
                     return self._respond_to_invalid_move()
                 elif any(np.array_equal(space, other_piece) for other_piece in self._pieces):
+                    print(f"Invalid move (through piece) at turn {self._move_timer}")
                     return self._respond_to_invalid_move()
+        elif piece == "wKing" and np.array_equal(new_location, self._pieces["wRook"]):
+            print(f"Invalid move (into rook) at turn {self._move_timer}")
+            return self._respond_to_invalid_move()
         
         self._pieces[piece] = new_location # Execute move
         if self._can_black_win(): # If black can win, game is over
+            print(f"Blunder at turn {self._move_timer}")
             return self._get_obs(), -100, True, False, self._get_info()
         
         # Black moves (assuming he cannot win/draw this turn)
         opponent_moves = self._get_legal_bking_moves()
         if len(opponent_moves) == 0: # Black cannot move
             if self._is_threatened(self._pieces["bKing"]): # Black is in checkmate
+                print(f"Checkmate! at turn {self._move_timer}")
                 return self._get_obs(), 100, True, False, self._get_info()
             else: # Black is in stalemate
+                print(f"Stalemate at turn {self._move_timer}")
                 return self._get_obs(), -100, True, False, self._get_info()
         
         # Black must have at least one legal move. Choose one at random.
@@ -156,6 +168,11 @@ class RookCheckmateEnv(gym.Env):
         
         if self.render_mode == "human":
             self._render_frame()
+        
+        self._move_timer += 1
+        if self._move_timer == 50:
+            print("50-move rule (timeout)")
+            return self._respond_to_invalid_move()
         
         return self._get_obs(), -1, False, False, self._get_info()
     
