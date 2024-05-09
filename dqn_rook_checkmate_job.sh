@@ -36,4 +36,4 @@ export PYTHONPATH=$PYTHONPATH:/u/cduplessie/Simple-Chess-RL-SAE/
 
 pip3 list
 
-CUDA_VISIBLE_DEVICES=0,1,2,3 srun python3.6 train_dqn.py
+CUDA_VISIBLE_DEVICES=0,1,2,3 srun python3.8 train_dqn.py
