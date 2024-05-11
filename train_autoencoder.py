@@ -31,7 +31,7 @@ def main():
     env = gym.make('RookCheckmate-v0')
     q = t.load('trained_rook_qnet.pt', map_location=device)
     
-    autoencoder = QNetAutoencoder(PRETRAINED_HIDDEN_SIZE, HIDDEN_SIZE)
+    autoencoder = QNetAutoencoder(PRETRAINED_HIDDEN_SIZE, HIDDEN_SIZE).to(device)
 
     print_interval = 20
     score = 0.0  
