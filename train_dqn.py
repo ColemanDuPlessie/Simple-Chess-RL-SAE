@@ -77,6 +77,9 @@ class CheckmateQnet(nn.Module):
         else : 
             return out.argmax().item()
             
+    def load_pretrained(self, path: str = "model/pytorch_model.bin") -> None:
+        self.load_state_dict(torch.load(path, map_location=device))
+            
 def train(q, q_target, memory, optimizer):
     for i in range(10):
         s,a,r,s_prime,done_mask = memory.sample(batch_size)
