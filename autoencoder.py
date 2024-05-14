@@ -3,6 +3,8 @@ import torch as t
 import torch.nn as nn
 import torch.nn.functional as F
 
+device = "cuda" if t.cuda.is_available() else "cpu"
+
 class QNetAutoencoder(nn.Module):
     def __init__(
         self,
@@ -25,9 +27,21 @@ class QNetAutoencoder(nn.Module):
         out = out.reshape_as(x)
         loss = F.mse_loss(out, x)
         return loss, out
+    
+    def features_to_out(self, feats):
+        return self.out_layer(self.relu(feats))
        
     def get_features(self, x):
         return self.in_layer(x)
+    
+    def forward_with_feature_ablation(self, x, feat_to_ablate, ablation_function=lambda x: 0):
+        in_data = x.reshape(-1, x.shape[-1])
+        with_bias = in_data + self.out_layer.bias
+        features = self.in_layer(with_bias)
+        features[feat_to_ablate] = ablation_function(features[feat_to_ablate])
+        out = self.out_layer(self.relu(features))
+        out = out.reshape_as(x)
+        return out
 
     def load_pretrained(self, path: str = "model/pytorch_model.bin") -> None:
         self.load_state_dict(t.load(path, map_location=device))

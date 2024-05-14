@@ -68,6 +68,9 @@ class CheckmateQnet(nn.Module):
         x = F.relu(self.fc1(x))
         x = self.fc2(x)
         return x
+    
+    def activations_to_out(self, acts):
+        return self.fc3(F.relu(acts))
       
     def sample_action(self, obs, epsilon):
         out = self.forward(obs)
