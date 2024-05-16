@@ -37,11 +37,22 @@ class FeatureExplorer:
         self.frame = tk.Frame(tk_root)
         self.feature_input = tk.Text(self.frame, width=5, height=1)
         self.go_button = tk.Button(self.frame, text="View feature", width=10, command=self.view_feature)
-        self.canvas = tk.Canvas(self.frame, width=800, height=500, bg="#ffeedd")
+        self.play_canvas = tk.Canvas(self.frame, width=250, height=250, bg="#aabbcc")
+        self.canvas = tk.Canvas(self.frame, width=160, height=100, bg="#ffeedd")
+        
+        self.play_canvas.bind("<Button-1>", self._play_board_clicked)
+        
         self.feature_input.pack()
         self.go_button.pack()
         self.canvas.pack()
+        self.play_canvas.pack()
         self.frame.pack()
+        
+        self.PLAY_CANVAS_SIZE = 50
+        self.rook_pos = (0, 0)
+        self.wking_pos = (0, 4)
+        self.bking_pos = (4, 4)
+        self.play_space_selected = None
         
         self.feat_acts = activations
         self.ablations = ablations
@@ -50,33 +61,56 @@ class FeatureExplorer:
         self.MIN_ABLATION = np.array((255, 0, 0))
         self.ZERO_ABLATION = np.array((127, 127, 127))
         self.MAX_ABLATION = np.array((0, 0, 255))
-        self.SQUARE_SIZE = 40
-        self.KING_COORDS = [(50, 0), (50, 50), (0, 50), (-50, 50),
-                            (-50, 0), (-50, -50), (0, -50), (50, -50)]
-        self.ROOK_COORDS = [(50, 0), (0, 50), (-50, 0), (0, -50)]
+        self.SQUARE_SIZE = 10
+        self.KING_COORDS = [(1, 0), (1, 1), (0, 1), (-1, 1),
+                            (-1, 0), (-1, -1), (0, -1), (1, -1)]
+        self.ROOK_COORDS = [(1, 0), (0, 1), (-1, 0), (0, -1)]
+        
+        self._draw_play_board()
     
-    def _draw_square(self, coords, color):
-        return self.canvas.create_rectangle(coords[0]-self.SQUARE_SIZE/2, coords[1]-self.SQUARE_SIZE/2, coords[0]+self.SQUARE_SIZE/2, coords[1]+self.SQUARE_SIZE/2, fill=color)
+    def _play_board_clicked(self, event):
+        location = (event.x // self.PLAY_CANVAS_SIZE, event.y // self.PLAY_CANVAS_SIZE)
+        if location in (self.rook_pos, self.wking_pos, self.bking_pos):
+            self.play_space_selected = location
+        elif self.play_space_selected is not None:
+            if self.rook_pos == self.play_space_selected:
+                self.rook_pos = location
+            elif self.wking_pos == self.play_space_selected:
+                self.wking_pos = location
+            elif self.bking_pos == self.play_space_selected:
+                self.bking_pos = location
+            self.play_space_selected = None
+        self._draw_play_board()
     
-    def _draw_ablations(self, feat_num):
-        ablation = self.ablations[feat_num]
+    def _draw_play_board(self):
+        self.play_canvas.delete("all")
+        if self.play_space_selected is not None:
+            self.play_canvas.create_oval((self.play_space_selected[0]-0.25)*self.PLAY_CANVAS_SIZE, (self.play_space_selected[1]-0.25)*self.PLAY_CANVAS_SIZE, (self.play_space_selected[0]+1.25)*self.PLAY_CANVAS_SIZE, (self.play_space_selected[1]+1.25)*self.PLAY_CANVAS_SIZE, fill="#88ff88")
+        self._draw_square(((self.rook_pos[0]+0.5)*self.PLAY_CANVAS_SIZE, (self.rook_pos[1]+0.5)*self.PLAY_CANVAS_SIZE), "#ffffff", self.PLAY_CANVAS_SIZE, self.play_canvas)
+        self.play_canvas.create_oval(self.wking_pos[0]*self.PLAY_CANVAS_SIZE, self.wking_pos[1]*self.PLAY_CANVAS_SIZE, (self.wking_pos[0]+1)*self.PLAY_CANVAS_SIZE, (self.wking_pos[1]+1)*self.PLAY_CANVAS_SIZE, fill="#ffffff")
+        self.play_canvas.create_oval(self.bking_pos[0]*self.PLAY_CANVAS_SIZE, self.bking_pos[1]*self.PLAY_CANVAS_SIZE, (self.bking_pos[0]+1)*self.PLAY_CANVAS_SIZE, (self.bking_pos[1]+1)*self.PLAY_CANVAS_SIZE, fill="#000000")
+    
+    def _draw_square(self, coords, color, scale, canv):
+        return canv.create_rectangle(coords[0]-scale/2, coords[1]-scale/2, coords[0]+scale/2, coords[1]+scale/2, fill=color)
+    
+    def _draw_ablations(self, ablation, scale, canv):
         ablation_strs = [inf if square.item() == 0 else log(abs(square.item()/self.max_ablation_magnitude))*-square.item()/abs(square.item()) for square in ablation]
         print(ablation_strs) # TODO the code for determining color here is terrible
         ablation_colors = [self.ZERO_ABLATION*max(1+1/strength, 0)-self.MIN_ABLATION*min(1/strength, 1) if strength < 0 else self.ZERO_ABLATION*max(1-1/strength, 0)+self.MAX_ABLATION*min(1/strength, 1) for strength in ablation_strs]
         self.canvas.delete("all")
-        self._draw_square((200, 250), "#ffffff")
-        self._draw_square((600, 250), "#ffffff")
+        self._draw_square((4*scale, 5*scale), "#ffffff", scale, canv)
+        self._draw_square((11*scale, 5*scale), "#ffffff", scale, canv)
         for i, color in enumerate(ablation_colors):
             if i < 8:
-                self._draw_square((200+self.KING_COORDS[i][0], 250+self.KING_COORDS[i][1]), ints_to_hex(*color))
+                self._draw_square((scale*(4+self.KING_COORDS[i][0]), scale*(5+self.KING_COORDS[i][1])), ints_to_hex(*color), scale, canv)
             else:
                 move = self.ROOK_COORDS[(i-8)//self.board_size]
-                dist = (i-8)%self.board_size
-                self._draw_square((600+move[0]*dist, 250+move[1]*dist), ints_to_hex(*color))
+                dist = (i-8)%self.board_size+1
+                self._draw_square((scale*(11+move[0]*dist), scale*(5+move[1]*dist)), ints_to_hex(*color), scale, canv)
             
     def view_feature(self):
         feat_num = int(self.feature_input.get("1.0", "end-1c").split()[0])
-        self._draw_ablations(feat_num)
+        self._draw_ablations(self.ablations[feat_num], scale=self.SQUARE_SIZE, canv=self.canvas)
 
 def gen_all_board_states(board_size=5, pieces=3):
     """
@@ -87,14 +121,7 @@ def gen_all_board_states(board_size=5, pieces=3):
     ans = permutations(spaces, pieces)
     return [np.concatenate(pos) for pos in ans]
 
-def main():
-    q = t.load(QNET_PATH, map_location=device)
-    autoencoder = QNetAutoencoder(PRETRAINED_HIDDEN_SIZE, HIDDEN_SIZE).to(device)
-    autoencoder.load_pretrained(AUTOENCODER_PATH)
-    
-    q.eval()
-    autoencoder.eval()
-    
+def gen_feat_acts(q, autoencoder):
     board_states = gen_all_board_states(5, 3) # 13,800 unique states, counting rotations and reflections
     
     feature_activations = []
@@ -105,6 +132,18 @@ def main():
         s = board_states[n_state]
         s_tensor = t.from_numpy(s).float().to(device)
         feature_activations.append(autoencoder.get_features(q.get_activations(s_tensor)))
+        
+    return board_states, feature_activations
+
+def main():
+    q = t.load(QNET_PATH, map_location=device)
+    autoencoder = QNetAutoencoder(PRETRAINED_HIDDEN_SIZE, HIDDEN_SIZE).to(device)
+    autoencoder.load_pretrained(AUTOENCODER_PATH)
+    
+    q.eval()
+    autoencoder.eval()
+    
+    board_states, feature_activations = gen_feat_acts(q, autoencoder)
     
     feature_tensor = t.stack(feature_activations, dim=0)
     mean_activation = t.mean(feature_tensor, dim=0)
