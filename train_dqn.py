@@ -52,11 +52,11 @@ class ReplayBuffer():
         return len(self.buffer)
 
 class CheckmateQnet(nn.Module):
-    def __init__(self, action_size=ACTION_SPACE_SIZE, observation_size=6):
+    def __init__(self, action_size=ACTION_SPACE_SIZE, observation_size=6, hidden_size=128):
         super(CheckmateQnet, self).__init__()
-        self.fc1 = nn.Linear(observation_size, 128)
-        self.fc2 = nn.Linear(128, 128)
-        self.fc3 = nn.Linear(128, action_size)
+        self.fc1 = nn.Linear(observation_size, hidden_size)
+        self.fc2 = nn.Linear(hidden_size, hidden_size)
+        self.fc3 = nn.Linear(hidden_size, action_size)
 
     def forward(self, x):
         x = F.relu(self.fc1(x))
@@ -99,7 +99,7 @@ def train(q, q_target, memory, optimizer):
 
 def main():
     env = gym.make('RookCheckmate-v0')
-    q = CheckmateQnet().to(device)
+    q = CheckmateQnet(hidden_size=512).to(device)
     q_target = CheckmateQnet().to(device)
     q_target.load_state_dict(q.state_dict())
     memory = ReplayBuffer()
@@ -111,7 +111,7 @@ def main():
     for n_epi in range(num_episodes):
         epsilon = max(0.01, 0.08 - 0.01*(n_epi/200)) #Linear annealing from 8% to 1%
         obs, _ = env.reset()
-        s = np.concatenate(tuple(obs.values()))
+        s = np.concatenate(tuple(obs.values())) # This looks sketchy, but .values() is ordered based on order in which keys were created (which is always the same in my implementation of the environment) in python versions >= 3.6, so it's okay.
         done = False
 
         while not done:

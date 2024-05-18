@@ -28,15 +28,20 @@ HIDDEN_SIZE = 1024
 BATCH_SIZE = 1024
 
 def ints_to_hex(r, g, b):
-    return "#" + hex(int(r)*16**4+int(g)*16**2+int(b))[2:]
+    r = min(r, 255)
+    g = min(g, 255)
+    b = min(b, 255)
+    return "#" + hex(int(r)*16**4+int(g)*16**2+int(b))[2:].zfill(6)
 
 class FeatureExplorer:
-    def __init__(self, tk_root, activations, ablations):
+    def __init__(self, tk_root, activations, ablations, q=None, autoencoder=None):
         self.root = tk_root
         self.board_size = ablations[0].shape[0]//4-2 # Note that this is 1 less than the actual board size: it's the maximum number of spaces a rook can possibly move in a straight line
         self.frame = tk.Frame(tk_root)
         self.feature_input = tk.Text(self.frame, width=5, height=1)
         self.go_button = tk.Button(self.frame, text="View feature", width=10, command=self.view_feature)
+        self.custom_ablation_button = tk.Button(self.frame, text="View specific ablation", width=20, command=self.view_ablation)
+        self.run_button = tk.Button(self.frame, text="Run full model", width=15, command=self.view_move)
         self.play_canvas = tk.Canvas(self.frame, width=250, height=250, bg="#aabbcc")
         self.canvas = tk.Canvas(self.frame, width=160, height=100, bg="#ffeedd")
         
@@ -44,8 +49,10 @@ class FeatureExplorer:
         
         self.feature_input.pack()
         self.go_button.pack()
+        self.custom_ablation_button.pack()
         self.canvas.pack()
         self.play_canvas.pack()
+        self.run_button.pack()
         self.frame.pack()
         
         self.PLAY_CANVAS_SIZE = 50
@@ -53,6 +60,9 @@ class FeatureExplorer:
         self.wking_pos = (0, 4)
         self.bking_pos = (4, 4)
         self.play_space_selected = None
+        
+        self.q = q
+        self.autoencoder = autoencoder
         
         self.feat_acts = activations
         self.ablations = ablations
@@ -111,6 +121,22 @@ class FeatureExplorer:
     def view_feature(self):
         feat_num = int(self.feature_input.get("1.0", "end-1c").split()[0])
         self._draw_ablations(self.ablations[feat_num], scale=self.SQUARE_SIZE, canv=self.canvas)
+    
+    def _get_play_board_state(self):
+        return np.array((*self.rook_pos, *self.wking_pos, *self.bking_pos))
+    
+    def view_move(self):
+        board_state = self._get_play_board_state()
+        suggestion = self.q(t.from_numpy(board_state).float().to(device))
+        self._draw_ablations(suggestion, scale=self.SQUARE_SIZE, canv=self.canvas)
+    
+    def view_ablation(self):
+        feat_num = int(self.feature_input.get("1.0", "end-1c").split()[0])
+        board_state = self._get_play_board_state()
+        activation = self.q.get_activations(t.from_numpy(board_state).float().to(device))
+        features = self.autoencoder.get_features(activation)
+        ablation = gen_ablations(features, self.q, self.autoencoder)
+        self._draw_ablations(ablation[feat_num], scale=self.SQUARE_SIZE, canv=self.canvas)
 
 def gen_all_board_states(board_size=5, pieces=3):
     """
@@ -135,6 +161,18 @@ def gen_feat_acts(q, autoencoder):
         
     return board_states, feature_activations
 
+def gen_ablations(activation, q, autoencoder):
+    ablation_effects = []
+    pre_ablation = q.activations_to_out(autoencoder.features_to_out(activation))
+    for feat_idx in range(HIDDEN_SIZE):
+        ablated_activation = activation.clone()
+        ablated_activation[feat_idx] = 0
+        post_ablation = q.activations_to_out(autoencoder.features_to_out(ablated_activation))
+        ablation_effect = post_ablation-pre_ablation
+        ablation_effects.append(ablation_effect)
+    
+    return ablation_effects
+
 def main():
     q = t.load(QNET_PATH, map_location=device)
     autoencoder = QNetAutoencoder(PRETRAINED_HIDDEN_SIZE, HIDDEN_SIZE).to(device)
@@ -148,18 +186,10 @@ def main():
     feature_tensor = t.stack(feature_activations, dim=0)
     mean_activation = t.mean(feature_tensor, dim=0)
     
-    ablation_effects = []
-    
-    pre_ablation = q.activations_to_out(autoencoder.features_to_out(mean_activation))
-    for feat_idx in range(HIDDEN_SIZE):
-        ablated_activation = mean_activation.clone()
-        ablated_activation[feat_idx] = 0
-        post_ablation = q.activations_to_out(autoencoder.features_to_out(ablated_activation))
-        ablation_effect = post_ablation-pre_ablation
-        ablation_effects.append(ablation_effect)
+    ablation_effects = gen_ablations(mean_activation, q, autoencoder)
     
     print(f"Data successfully generated! Input a feature # (up to but not including {HIDDEN_SIZE}) to see a visualization of that feature.")
-    f = FeatureExplorer(root, feature_activations, ablation_effects)
+    f = FeatureExplorer(root, feature_activations, ablation_effects, q, autoencoder)
     root.mainloop()
         
 
