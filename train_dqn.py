@@ -100,7 +100,7 @@ def train(q, q_target, memory, optimizer):
 def main():
     env = gym.make('RookCheckmate-v0')
     q = CheckmateQnet(hidden_size=512).to(device)
-    q_target = CheckmateQnet().to(device)
+    q_target = CheckmateQnet(hidden_size=512).to(device)
     q_target.load_state_dict(q.state_dict())
     memory = ReplayBuffer()
 
@@ -136,7 +136,7 @@ def main():
             score = 0.0
     env.close()
     
-    torch.save(q, "trained_rook_qnet.pt")
+    torch.save(q, "bigger_trained_rook_qnet.pt")
 
 if __name__ == '__main__':
     main()
