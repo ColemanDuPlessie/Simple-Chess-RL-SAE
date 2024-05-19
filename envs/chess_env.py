@@ -138,7 +138,7 @@ class RookCheckmateEnv(gym.Env):
             magnitude = max(np.absolute(direction))
             unit_move = direction/magnitude
             for i in range(magnitude):
-                space = new_location+unit_move*i
+                space = new_location-unit_move*i
                 if i == 0 and np.array_equal(space, self._pieces["wKing"]):
                     if self.verbose:
                         print(f"Invalid move (into king) at turn {self._move_timer}")
