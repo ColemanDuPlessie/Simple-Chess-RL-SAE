@@ -15,8 +15,8 @@ num_episodes = 25000
             
 LEARNING_RATE = 0.001
 REGULARIZATION_VALUE = 0.0001
-PRETRAINED_HIDDEN_SIZE = 128
-HIDDEN_SIZE = 1024
+PRETRAINED_HIDDEN_SIZE = 512
+HIDDEN_SIZE = 2048
 BATCH_SIZE = 1024
 
 def train_one_epoch(autoencoder, optimizer, data):

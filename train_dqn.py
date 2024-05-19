@@ -19,7 +19,7 @@ BOARD_SIZE = 5
 ACTION_SPACE_SIZE = 8+(BOARD_SIZE-1)*4
 
 #Hyperparameters
-num_episodes  = 50000
+num_episodes  = 200000
 learning_rate = 0.0005
 gamma         = 0.98
 buffer_limit  = 50000
