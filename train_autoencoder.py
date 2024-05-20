@@ -11,7 +11,7 @@ from train_dqn import CheckmateQnet, device
 
 QNET_PATH = "bigger_trained_rook_qnet.pt"
             
-num_episodes = 75000        
+num_episodes = 200000        
             
 LEARNING_RATE = 0.001
 REGULARIZATION_VALUE = 0.0001
@@ -29,7 +29,7 @@ def train_one_epoch(autoencoder, optimizer, data):
 
 def main():
     env = gym.make('RookCheckmate-v0')
-    q = t.load('trained_rook_qnet.pt', map_location=device)
+    q = t.load(QNET_PATH, map_location=device)
     
     autoencoder = QNetAutoencoder(PRETRAINED_HIDDEN_SIZE, HIDDEN_SIZE).to(device)
 
