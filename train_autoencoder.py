@@ -9,15 +9,15 @@ import torch as t
 from autoencoder import QNetAutoencoder
 from train_dqn import CheckmateQnet, device
 
-QNET_PATH = "trained_rook_qnet.pt"
+QNET_PATH = "bigger_trained_rook_qnet.pt"
             
-num_episodes = 25000        
+num_episodes = 75000        
             
 LEARNING_RATE = 0.001
 REGULARIZATION_VALUE = 0.0001
 PRETRAINED_HIDDEN_SIZE = 512
 HIDDEN_SIZE = 2048
-BATCH_SIZE = 1024
+BATCH_SIZE = 2048
 
 def train_one_epoch(autoencoder, optimizer, data):
     optimizer.zero_grad()
@@ -70,7 +70,7 @@ def main():
             print("n_episode :{}, score : {:.1f}".format(n_epi, score/print_interval))
             score = 0.0
     env.close()
-    t.save(autoencoder.state_dict(), "trained_autoencoder.pt")
+    t.save(autoencoder.state_dict(), "bigger_trained_autoencoder.pt")
 
 if __name__ == "__main__":
     main()

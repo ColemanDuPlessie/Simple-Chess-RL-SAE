@@ -10,7 +10,7 @@ import gym
 import torch as t
 
 from autoencoder import QNetAutoencoder
-from train_dqn import CheckmateQnet, device
+from train_dqn import CheckmateQnet
 
 device = "cuda" if t.cuda.is_available() else "cpu"
 
