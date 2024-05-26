@@ -11,7 +11,7 @@ QNET_PATH = "bigger_trained_rook_qnet.pt"
 num_steps = 100
 
 def main():
-    e = gym.make("RookCheckmate-v0", render_mode="human")
+    e = gym.make("RookCheckmate-v0", render_mode="human", random_opponent=False)
     q = torch.load(QNET_PATH, map_location=device)
     q.eval()
     o, i = e.reset()

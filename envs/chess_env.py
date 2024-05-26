@@ -1,3 +1,5 @@
+from math import sqrt
+
 import gym
 from gym import spaces
 from time import sleep
@@ -5,11 +7,15 @@ from time import sleep
 import pygame
 import numpy as np
 
+def squared_euclidean_dist(a, b):
+    return (a[0]-b[0])**2+(a[1]-b[1])**2
+
 class RookCheckmateEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 1}
     
-    def __init__(self, render_mode=None, size=5, verbose=False):
+    def __init__(self, render_mode=None, size=5, random_opponent=True, verbose=False):
         self.size = size
+        self.random_opponent = random_opponent
         self.window_size = 512
         
         self.verbose = verbose
@@ -175,8 +181,36 @@ class RookCheckmateEnv(gym.Env):
                     print(f"Stalemate at turn {self._move_timer}")
                 return self._get_obs(), -100, True, False, self._get_info()
         
-        # Black must have at least one legal move. Choose one at random.
-        move = self.np_random.choice(opponent_moves)
+        # Black must have at least one legal move.
+        if self.random_opponent:
+            # Choose one at random.
+            move = self.np_random.choice(opponent_moves)
+        else:
+            # Make the move that minimizes the (eucledian!) distance to the enemy rook. In case of a tie, prefer the center of the board.
+            move_options = []
+            best_dist = float("inf")
+            for move in opponent_moves:
+                dist = squared_euclidean_dist(move, self._pieces["wRook"])
+                if dist < best_dist:
+                    move_options = [move,]
+                    best_dist = dist
+                elif dist == best_dist:
+                    move_options.append(move)
+            if len(move_options) == 1:
+                move = move_options[0]
+            else:
+                move_options_center = []
+                center_pos = ((self.size-1)/2, (self.size-1)/2)
+                best_dist = float("inf")
+                for move in move_options:
+                    dist = squared_euclidean_dist(move, center_pos)
+                    if dist < best_dist:
+                        move_options_center = [move,]
+                        best_dist = dist
+                    elif dist == best_dist:
+                        move_options_center.append(move)
+                move = self.np_random.choice(move_options_center) # This will be a 1-element list unless there are two legal moves that are equidistant from both the center and the enemy rook.
+                
         self._pieces["bKing"] = move
         
         if self.render_mode == "human":
