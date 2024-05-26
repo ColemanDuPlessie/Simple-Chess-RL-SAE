@@ -16,15 +16,15 @@ device = "cuda" if t.cuda.is_available() else "cpu"
 
 root = tk.Tk()
 
-QNET_PATH = "trained_rook_qnet.pt"
-AUTOENCODER_PATH = "trained_autoencoder.pt"
+QNET_PATH = "bigger_trained_rook_qnet.pt"
+AUTOENCODER_PATH = "bigger_trained_autoencoder.pt"
             
 num_episodes = 25000        
             
 LEARNING_RATE = 0.001
 REGULARIZATION_VALUE = 0.0001
-PRETRAINED_HIDDEN_SIZE = 128
-HIDDEN_SIZE = 1024
+PRETRAINED_HIDDEN_SIZE = 512
+HIDDEN_SIZE = 2048
 BATCH_SIZE = 1024
 
 def ints_to_hex(r, g, b):
@@ -103,10 +103,14 @@ class FeatureExplorer:
     def _draw_square(self, coords, color, scale, canv):
         return canv.create_rectangle(coords[0]-scale/2, coords[1]-scale/2, coords[0]+scale/2, coords[1]+scale/2, fill=color)
     
-    def _draw_ablations(self, ablation, scale, canv):
-        ablation_strs = [inf if square.item() == 0 else log(abs(square.item()/self.max_ablation_magnitude))*-square.item()/abs(square.item()) for square in ablation]
+    def _draw_ablations(self, ablation, scale, canv, highlight=False):
+        max_str = max([abs(square.item()) for square in ablation])
+        if max_str == 0: max_str = 1 # This can only occur if all strengths are 0 (i.e. the ReLU is not active on this input), and is only here to avoid an error from dividing by zero.
+        ablation_strs = [square.item()/max_str for square in ablation]
         print(ablation_strs) # TODO the code for determining color here is terrible
-        ablation_colors = [self.ZERO_ABLATION*max(1+1/strength, 0)-self.MIN_ABLATION*min(1/strength, 1) if strength < 0 else self.ZERO_ABLATION*max(1-1/strength, 0)+self.MAX_ABLATION*min(1/strength, 1) for strength in ablation_strs]
+        ablation_colors = [self.ZERO_ABLATION*(1-abs(strength))+self.MIN_ABLATION*abs(strength) if strength < 0 else self.ZERO_ABLATION*(1-abs(strength))+self.MAX_ABLATION*abs(strength) for strength in ablation_strs]
+        if highlight:
+            ablation_colors[ablation_strs.index(max(ablation_strs))] = (0, 255, 0)
         self.canvas.delete("all")
         self._draw_square((4*scale, 5*scale), "#ffffff", scale, canv)
         self._draw_square((11*scale, 5*scale), "#ffffff", scale, canv)
@@ -128,7 +132,7 @@ class FeatureExplorer:
     def view_move(self):
         board_state = self._get_play_board_state()
         suggestion = self.q(t.from_numpy(board_state).float().to(device))
-        self._draw_ablations(suggestion, scale=self.SQUARE_SIZE, canv=self.canvas)
+        self._draw_ablations(suggestion, scale=self.SQUARE_SIZE, canv=self.canvas, highlight=True)
     
     def view_ablation(self):
         feat_num = int(self.feature_input.get("1.0", "end-1c").split()[0])
@@ -168,7 +172,7 @@ def gen_ablations(activation, q, autoencoder):
         ablated_activation = activation.clone()
         ablated_activation[feat_idx] = 0
         post_ablation = q.activations_to_out(autoencoder.features_to_out(ablated_activation))
-        ablation_effect = post_ablation-pre_ablation
+        ablation_effect = pre_ablation-post_ablation
         ablation_effects.append(ablation_effect)
     
     return ablation_effects

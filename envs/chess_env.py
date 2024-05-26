@@ -1,5 +1,6 @@
 import gym
 from gym import spaces
+from time import sleep
 
 import pygame
 import numpy as np
@@ -157,6 +158,10 @@ class RookCheckmateEnv(gym.Env):
             if self.verbose:
                 print(f"Blunder at turn {self._move_timer}")
             return self._get_obs(), -100, True, False, self._get_info()
+        
+        if self.render_mode == "human":
+            sleep(0.2)
+            self._render_frame()
         
         # Black moves (assuming he cannot win/draw this turn)
         opponent_moves = self._get_legal_bking_moves()
