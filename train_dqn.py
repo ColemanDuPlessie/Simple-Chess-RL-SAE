@@ -19,7 +19,7 @@ BOARD_SIZE = 5
 ACTION_SPACE_SIZE = 8+(BOARD_SIZE-1)*4
 
 #Hyperparameters
-is_equivariant = True
+is_equivariant = False
 num_episodes  = 400000
 learning_rate = 0.0005
 gamma         = 0.98
@@ -58,7 +58,7 @@ def make_equivariant(sample, board_size):
     return best_sample, eq_code
 
 def undo_equivariance(sample, eq_code, board_size):
-    max_coord = board_size-1
+    max_coord = BOARD_SIZE-1
     out = sample.copy()
     for key in out.keys():
         if eq_code[0]:
@@ -79,7 +79,7 @@ def undo_equivariance_action(action_code, eq_code):
         if eq_code[2]: # Diagonal flip
             out = ((9-out)%8+1)%8
     else: # Rook move
-        rook_move_size = board_size-1
+        rook_move_size = BOARD_SIZE-1
         dist = (out-8)%rook_move_size
         direction = (out-8)//rook_move_size
         if eq_code[0]: # Vertical flip
@@ -167,7 +167,7 @@ def train(q, q_target, memory, optimizer):
         optimizer.step()
 
 def main():
-    env = gym.make('RookCheckmate-v0', random_opponent=False)
+    env = gym.make('RookCheckmate-v0', random_opponent=True)
     q = CheckmateQnet(hidden_size=512).to(device)
     q_target = CheckmateQnet(hidden_size=512).to(device)
     q_target.load_state_dict(q.state_dict())
@@ -178,10 +178,13 @@ def main():
     optimizer = optim.Adam(q.parameters(), lr=learning_rate)
 
     for n_epi in range(num_episodes):
+        if n_epi == num_episodes//2:
+            print("Switching from random to heuristic enemy...")
+            env.random_opponent=False
         epsilon = max(0.01, 0.08 - 0.01*(n_epi/200)) #Linear annealing from 8% to 1%
         obs, _ = env.reset()
         if is_equivariant:
-            obs, eq_code = make_equivariant(obs, BOARD_SIZE)[0]
+            obs, eq_code = make_equivariant(obs, BOARD_SIZE)
         s = np.concatenate(tuple(obs.values())) # This looks sketchy, but .values() is ordered based on order in which keys were created (which is always the same in my implementation of the environment) in python versions >= 3.6, so it's okay.
         done = False
 
@@ -191,7 +194,7 @@ def main():
                 a = undo_equivariance_action(a, eq_code)
             obs, r, done, truncated, info = env.step(a)
             if is_equivariant:
-                obs, eq_code = make_equivariant(obs, BOARD_SIZE)[0]
+                obs, eq_code = make_equivariant(obs, BOARD_SIZE)
             s_prime = np.concatenate(tuple(obs.values()))
             done_mask = 0.0 if done else 1.0
             memory.put((s,a,r/100.0,s_prime, done_mask))
