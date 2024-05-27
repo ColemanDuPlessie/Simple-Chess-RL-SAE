@@ -44,18 +44,34 @@ class FeatureExplorer:
         self.run_button = tk.Button(self.frame, text="Run full model", width=15, command=self.view_move)
         self.play_canvas = tk.Canvas(self.frame, width=250, height=250, bg="#aabbcc")
         self.canvas = tk.Canvas(self.frame, width=160, height=100, bg="#ffeedd")
+        self.mini_canvs = [tk.Canvas(self.frame, width=120, height=120, bg="#bbddbb") for i in range(10)]
+        self.canv_labels = [tk.Label(self.frame, text="0.0") for i in range(10)]
+        self.label = tk.Label(self.frame, text="Page (of boards):")
+        self.page_input = tk.Text(self.frame, width=5, height=1)
+        self.page_input.insert(tk.END, "1")
+        self.max_activation_button = tk.Button(self.frame, text="Get boards that maximally activate this feature", width=45, command=self.view_activation_boards)
         
         self.play_canvas.bind("<Button-1>", self._play_board_clicked)
         
-        self.feature_input.pack()
-        self.go_button.pack()
-        self.custom_ablation_button.pack()
-        self.canvas.pack()
-        self.play_canvas.pack()
-        self.run_button.pack()
+        self.feature_input.grid(row=0, column=1, columnspan=3)
+        self.go_button.grid(row=1, column=1)
+        self.custom_ablation_button.grid(row=1, column=2, columnspan=3)
+        self.canvas.grid(row=2, column=1, columnspan=3)
+        self.play_canvas.grid(row=3, column=1, columnspan=3)
+        self.run_button.grid(row=4, column=1, columnspan=3)
+        for idx, canv in enumerate(self.mini_canvs):
+            canv.grid(row=5+2*(idx//5), column=idx%5)
+            self.canv_labels[idx].grid(row=6+2*(idx//5), column=idx%5)
+        self.label.grid(row=9, column=0)
+        self.page_input.grid(row=9, column=1)
+        self.max_activation_button.grid(row=9, column=2, columnspan=3)
         self.frame.pack()
         
+        self.current_feature_inspecting = -1
+        self.current_feature_act_order = None
+        
         self.PLAY_CANVAS_SIZE = 50
+        self.MINI_CANVAS_SIZE = 24
         self.rook_pos = (0, 0)
         self.wking_pos = (0, 4)
         self.bking_pos = (4, 4)
@@ -64,7 +80,8 @@ class FeatureExplorer:
         self.q = q
         self.autoencoder = autoencoder
         
-        self.feat_acts = activations
+        self.board_states = activations[0]
+        self.feat_acts = activations[1]
         self.ablations = ablations
         self.max_ablation_magnitude = max([t.abs(ablation).max().item() for ablation in self.ablations])
         print(self.max_ablation_magnitude)
@@ -91,6 +108,12 @@ class FeatureExplorer:
                 self.bking_pos = location
             self.play_space_selected = None
         self._draw_play_board()
+    
+    def _draw_mini_canvas(self, canv, rook, wking, bking):
+        canv.delete("all")
+        self._draw_square(((rook[0]+0.5)*self.MINI_CANVAS_SIZE, (rook[1]+0.5)*self.MINI_CANVAS_SIZE), "#ffffff", self.MINI_CANVAS_SIZE, canv)
+        canv.create_oval(wking[0]*self.MINI_CANVAS_SIZE, wking[1]*self.MINI_CANVAS_SIZE, (wking[0]+1)*self.MINI_CANVAS_SIZE, (wking[1]+1)*self.MINI_CANVAS_SIZE, fill="#ffffff")
+        canv.create_oval(bking[0]*self.MINI_CANVAS_SIZE, bking[1]*self.MINI_CANVAS_SIZE, (bking[0]+1)*self.MINI_CANVAS_SIZE, (bking[1]+1)*self.MINI_CANVAS_SIZE, fill="#000000")
     
     def _draw_play_board(self):
         self.play_canvas.delete("all")
@@ -141,6 +164,18 @@ class FeatureExplorer:
         features = self.autoencoder.get_features(activation)
         ablation = gen_ablations(features, self.q, self.autoencoder)
         self._draw_ablations(ablation[feat_num], scale=self.SQUARE_SIZE, canv=self.canvas)
+    
+    def view_activation_boards(self):
+        feat_num = int(self.feature_input.get("1.0", "end-1c").split()[0])
+        if feat_num != self.current_feature_inspecting:
+            self.current_feature_act_order = sorted(range(len(self.feat_acts)), key=lambda f: self.feat_acts[f][feat_num], reverse=True)
+            self.current_feature_inspecting = feat_num
+        page_num = int(self.page_input.get("1.0", "end-1c").split()[0])
+        for idx, canv in enumerate(self.mini_canvs):
+            board_idx = idx+(page_num-1)*10
+            board = self.board_states[self.current_feature_act_order[board_idx]]
+            self._draw_mini_canvas(canv, board[:2], board[2:4], board[4:])
+            self.canv_labels[idx]['text'] = f"{self.feat_acts[self.current_feature_act_order[board_idx]][feat_num].item():.8f}"
 
 def gen_all_board_states(board_size=5, pieces=3):
     """
@@ -193,7 +228,7 @@ def main():
     ablation_effects = gen_ablations(mean_activation, q, autoencoder)
     
     print(f"Data successfully generated! Input a feature # (up to but not including {HIDDEN_SIZE}) to see a visualization of that feature.")
-    f = FeatureExplorer(root, feature_activations, ablation_effects, q, autoencoder)
+    f = FeatureExplorer(root, (board_states, feature_activations), ablation_effects, q, autoencoder)
     root.mainloop()
         
 
