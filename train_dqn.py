@@ -19,8 +19,8 @@ BOARD_SIZE = 5
 ACTION_SPACE_SIZE = 8+(BOARD_SIZE-1)*4
 
 #Hyperparameters
-is_equivariant = False
-num_episodes  = 200000
+is_equivariant = True
+num_episodes  = 400000
 learning_rate = 0.0005
 gamma         = 0.98
 buffer_limit  = 50000
@@ -167,7 +167,7 @@ def train(q, q_target, memory, optimizer):
         optimizer.step()
 
 def main():
-    env = gym.make('RookCheckmate-v0')
+    env = gym.make('RookCheckmate-v0', random_opponent=False)
     q = CheckmateQnet(hidden_size=512).to(device)
     q_target = CheckmateQnet(hidden_size=512).to(device)
     q_target.load_state_dict(q.state_dict())
@@ -211,7 +211,7 @@ def main():
             score = 0.0
     env.close()
     
-    torch.save(q, "bigger_trained_rook_qnet.pt")
+    torch.save(q, "equivariant_trained_rook_qnet.pt")
 
 if __name__ == '__main__':
     main()
