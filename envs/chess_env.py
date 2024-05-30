@@ -13,19 +13,30 @@ def squared_euclidean_dist(a, b):
 class RookCheckmateEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 1}
     
-    def __init__(self, render_mode=None, size=5, random_opponent=True, verbose=False):
+    def __init__(self, render_mode=None, size=5, one_hot_observation_space=False, random_opponent=True, verbose=False):
         self.size = size
         self.random_opponent = random_opponent
         self.window_size = 512
         
         self.verbose = verbose
         
-        self.observation_space = spaces.Dict(
-            {
-                "wRook": spaces.Box(0, size-1, shape=(2,), dtype=int),
-                "wKing": spaces.Box(0, size-1, shape=(2,), dtype=int),
-                "bKing": spaces.Box(0, size-1, shape=(2,), dtype=int)
-            })
+        self.one_hot_observation_space = one_hot_observation_space
+        
+        if one_hot_observation_space:
+            self.num_squares = self.size**2
+            self.observation_space = spaces.Dict(
+                {
+                    "wRook": spaces.Box(0, self.num_squares-1, dtype=int),
+                    "wKing": spaces.Box(0, self.num_squares-1, dtype=int),
+                    "bKing": spaces.Box(0, self.num_squares-1, dtype=int)
+                })
+        else:
+            self.observation_space = spaces.Dict(
+                {
+                    "wRook": spaces.Box(0, size-1, shape=(2,), dtype=int),
+                    "wKing": spaces.Box(0, size-1, shape=(2,), dtype=int),
+                    "bKing": spaces.Box(0, size-1, shape=(2,), dtype=int)
+                })
         
         # TODO this is a kludge.
         # Actions 0-7 are king moves 0=E, 1=NE, 2=N etc.
@@ -60,7 +71,10 @@ class RookCheckmateEnv(gym.Env):
         self.clock = None
     
     def _get_obs(self):
-        return dict(self._pieces)
+        if self.one_hot_observation_space:
+            return {key : self._pieces[key][0]+self._pieces[key][1]*self.size for key in self._pieces.keys()}
+        else:
+            return dict(self._pieces)
     
     def _get_info(self): return {}
     

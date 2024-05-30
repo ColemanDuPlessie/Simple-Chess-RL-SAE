@@ -15,6 +15,8 @@ import envs # Adds RookCheckmate-v0 to gym
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
+ONE_HOT_OBS_SPACE = False # TODO
+OBS_SIZE = BOARD_SIZE**2*3 if ONE_HOT_OBS_SPACE else 6
 BOARD_SIZE = 5
 ACTION_SPACE_SIZE = 8+(BOARD_SIZE-1)*4
 
@@ -167,9 +169,9 @@ def train(q, q_target, memory, optimizer):
         optimizer.step()
 
 def main():
-    env = gym.make('RookCheckmate-v0', random_opponent=True)
-    q = CheckmateQnet(hidden_size=512).to(device)
-    q_target = CheckmateQnet(hidden_size=512).to(device)
+    env = gym.make('RookCheckmate-v0', random_opponent=True, one_hot_observation_space=ONE_HOT_OBS_SPACE)
+    q = CheckmateQnet(hidden_size=512, observation_size=OBS_SIZE).to(device)
+    q_target = CheckmateQnet(hidden_size=512, observation_size=OBS_SIZE).to(device)
     q_target.load_state_dict(q.state_dict())
     memory = ReplayBuffer()
 
@@ -214,7 +216,7 @@ def main():
             score = 0.0
     env.close()
     
-    torch.save(q, "equivariant_trained_rook_qnet.pt")
+    torch.save(q, "smarter_trained_rook_qnet.pt")
 
 if __name__ == '__main__':
     main()
