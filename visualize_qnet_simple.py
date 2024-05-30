@@ -11,13 +11,14 @@ QNET_PATH = "smarter_trained_rook_qnet.pt"
 num_steps = 100
 
 def main():
-    e = gym.make("RookCheckmate-v0", render_mode="human", random_opponent=False)
+    e = gym.make("RookCheckmate-v0", render_mode="human", random_opponent=False, one_hot_observation_space=True)
     q = torch.load(QNET_PATH, map_location=device)
     q.eval()
     o, i = e.reset()
+    print(o)
     
     for step in range(num_steps):
-        o, r, t, t2, i = e.step(q(torch.from_numpy(np.concatenate(tuple(o.values()))).float()).argmax().item())
+        o, r, t, t2, i = e.step(q(torch.from_numpy(np.array(tuple(o.values()))).float()).argmax().item())
         if t or t2:
             o, i = e.reset()
 

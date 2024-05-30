@@ -15,7 +15,7 @@ import envs # Adds RookCheckmate-v0 to gym
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
-ONE_HOT_OBS_SPACE = False # TODO
+ONE_HOT_OBS_SPACE = True # TODO
 OBS_SIZE = BOARD_SIZE**2*3 if ONE_HOT_OBS_SPACE else 6
 BOARD_SIZE = 5
 ACTION_SPACE_SIZE = 8+(BOARD_SIZE-1)*4
@@ -169,7 +169,7 @@ def train(q, q_target, memory, optimizer):
         optimizer.step()
 
 def main():
-    env = gym.make('RookCheckmate-v0', random_opponent=True, one_hot_observation_space=ONE_HOT_OBS_SPACE)
+    env = gym.make('RookCheckmate-v0', random_opponent=False, one_hot_observation_space=ONE_HOT_OBS_SPACE)
     q = CheckmateQnet(hidden_size=512, observation_size=OBS_SIZE).to(device)
     q_target = CheckmateQnet(hidden_size=512, observation_size=OBS_SIZE).to(device)
     q_target.load_state_dict(q.state_dict())
@@ -180,9 +180,6 @@ def main():
     optimizer = optim.Adam(q.parameters(), lr=learning_rate)
 
     for n_epi in range(num_episodes):
-        if n_epi == num_episodes//2:
-            print("Switching from random to heuristic enemy...")
-            env.random_opponent=False
         epsilon = max(0.01, 0.08 - 0.01*(n_epi/200)) #Linear annealing from 8% to 1%
         obs, _ = env.reset()
         if is_equivariant:
