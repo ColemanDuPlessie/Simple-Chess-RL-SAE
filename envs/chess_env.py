@@ -26,9 +26,9 @@ class RookCheckmateEnv(gym.Env):
             self.num_squares = self.size**2
             self.observation_space = spaces.Dict(
                 {
-                    "wRook": spaces.Box(0, self.num_squares-1, dtype=int),
-                    "wKing": spaces.Box(0, self.num_squares-1, dtype=int),
-                    "bKing": spaces.Box(0, self.num_squares-1, dtype=int)
+                    "wRook": spaces.Box(0, 1, shape=self.num_squares-1, dtype=int),
+                    "wKing": spaces.Box(0, 1, shape=self.num_squares-1, dtype=int),
+                    "bKing": spaces.Box(0, 1, shape=self.num_squares-1, dtype=int)
                 })
         else:
             self.observation_space = spaces.Dict(
@@ -72,7 +72,10 @@ class RookCheckmateEnv(gym.Env):
     
     def _get_obs(self):
         if self.one_hot_observation_space:
-            return {key : self._pieces[key][0]+self._pieces[key][1]*self.size for key in self._pieces.keys()}
+            out = {key : np.zeros(self.num_squares) for key in self._pieces.keys()}
+            for key in out.keys():
+                out[key][self._pieces[key][0]+self._pieces[key][1]*self.size] = 1
+            return out
         else:
             return dict(self._pieces)
     

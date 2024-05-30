@@ -18,7 +18,7 @@ def main():
     print(o)
     
     for step in range(num_steps):
-        o, r, t, t2, i = e.step(q(torch.from_numpy(np.array(tuple(o.values()))).float()).argmax().item())
+        o, r, t, t2, i = e.step(q(torch.from_numpy(np.concatenate(tuple(o.values()))).float()).argmax().item())
         if t or t2:
             o, i = e.reset()
 

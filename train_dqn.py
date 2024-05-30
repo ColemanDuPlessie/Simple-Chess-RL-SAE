@@ -184,7 +184,7 @@ def main():
         obs, _ = env.reset()
         if is_equivariant:
             obs, eq_code = make_equivariant(obs, BOARD_SIZE)
-        s = np.array(tuple(obs.values())) # This looks sketchy, but .values() is ordered based on order in which keys were created (which is always the same in my implementation of the environment) in python versions >= 3.6, so it's okay.
+        s = np.concatenate(tuple(obs.values())) # This looks sketchy, but .values() is ordered based on order in which keys were created (which is always the same in my implementation of the environment) in python versions >= 3.6, so it's okay.
         done = False
 
         while not done:
@@ -194,7 +194,7 @@ def main():
             obs, r, done, truncated, info = env.step(a)
             if is_equivariant:
                 obs, eq_code = make_equivariant(obs, BOARD_SIZE)
-            s_prime = np.array(tuple(obs.values()))
+            s_prime = np.concatenate(tuple(obs.values()))
             done_mask = 0.0 if done else 1.0
             memory.put((s,a,r/100.0,s_prime, done_mask))
             s = s_prime
