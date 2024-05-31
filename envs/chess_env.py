@@ -106,10 +106,10 @@ class RookCheckmateEnv(gym.Env):
         return self._get_obs(), self._get_info()
     
     def _is_threatened(self, coords):
-        return ((abs(self._pieces["wKing"][0]-coords[0]) <= 1 and
-            abs(self._pieces["wKing"][1]-coords[1]) <= 1) or
-            self._pieces["wRook"][0] == coords[0] or
-            self._pieces["wRook"][1] == coords[1])
+        ans = (abs(self._pieces["wKing"][0]-coords[0]) <= 1 and abs(self._pieces["wKing"][1]-coords[1]) <= 1) # Check from king
+        ans = ans or (self._pieces["wRook"][0] == coords[0] and not(self._pieces["wKing"][0] == coords[0] and min(coords[1], self._pieces["wRook"][1]) < self._pieces["wKing"][1] < max(coords[1], self._pieces["wRook"][1]))) # Horiz. check from rook
+        ans = ans or (self._pieces["wRook"][1] == coords[1] and not(self._pieces["wKing"][1] == coords[1] and min(coords[0], self._pieces["wRook"][0]) < self._pieces["wKing"][0] < max(coords[0], self._pieces["wRook"][0]))) # Vert. check from rook
+        return ans
     
     def _get_legal_bking_moves(self):
         moves = []
@@ -145,7 +145,6 @@ class RookCheckmateEnv(gym.Env):
         """
         Possible rewards:
         -1: Normal move
-        -2: Illegal move. Move is not processed, so next observation will remain the same TODO is this the best way, or should the episode end with a large penalty?
         -100: Move that resulted in draw (e.g. throwing away the rook) or loss (e.g. move into check, rook sacrifice)
         100: Move that resulted in checkmate
         """
@@ -167,7 +166,7 @@ class RookCheckmateEnv(gym.Env):
                     if self.verbose:
                         print(f"Invalid move (into king) at turn {self._move_timer}")
                     return self._respond_to_invalid_move()
-                elif any(np.array_equal(space, other_piece) for other_piece in self._pieces):
+                elif any(np.array_equal(space, other_piece) for other_piece in self._pieces.values()):
                     if self.verbose:
                         print(f"Invalid move (through piece) at turn {self._move_timer}")
                     return self._respond_to_invalid_move()
