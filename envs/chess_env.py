@@ -26,9 +26,9 @@ class RookCheckmateEnv(gym.Env):
             self.num_squares = self.size**2
             self.observation_space = spaces.Dict(
                 {
-                    "wRook": spaces.Box(0, 1, shape=self.num_squares-1, dtype=int),
-                    "wKing": spaces.Box(0, 1, shape=self.num_squares-1, dtype=int),
-                    "bKing": spaces.Box(0, 1, shape=self.num_squares-1, dtype=int)
+                    "wRook": spaces.MultiBinary(self.num_squares-1), # TODO this is a little bit of a kludge in that sample() will return garbage that is multi-hot.
+                    "wKing": spaces.MultiBinary(self.num_squares-1),
+                    "bKing": spaces.MultiBinary(self.num_squares-1)
                 })
         else:
             self.observation_space = spaces.Dict(
