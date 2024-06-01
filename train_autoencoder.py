@@ -28,7 +28,7 @@ def train_one_epoch(autoencoder, optimizer, data):
             
 
 def main():
-    env = gym.make('RookCheckmate-v0', random_opponent=False)
+    env = gym.make('RookCheckmate-v0', random_opponent=False, one_hot_observation_space=True)
     q = t.load(QNET_PATH, map_location=device)
     
     autoencoder = QNetAutoencoder(PRETRAINED_HIDDEN_SIZE, HIDDEN_SIZE).to(device)
