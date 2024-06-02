@@ -15,7 +15,6 @@ def main():
     q = torch.load(QNET_PATH, map_location=device)
     q.eval()
     o, i = e.reset()
-    print(o)
     
     for step in range(num_steps):
         o, r, t, t2, i = e.step(q(torch.from_numpy(np.concatenate(tuple(o.values()))).float()).argmax().item())

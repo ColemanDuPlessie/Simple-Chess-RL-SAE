@@ -16,8 +16,11 @@ device = "cuda" if t.cuda.is_available() else "cpu"
 
 root = tk.Tk()
 
-QNET_PATH = "bigger_trained_rook_qnet.pt"
-AUTOENCODER_PATH = "bigger_trained_autoencoder.pt"
+BOARD_SIZE = 5
+ONE_HOT = True
+
+QNET_PATH = "smarter_trained_rook_qnet.pt"
+AUTOENCODER_PATH = "smarter_trained_autoencoder.pt"
             
 num_episodes = 25000        
             
@@ -26,6 +29,12 @@ REGULARIZATION_VALUE = 0.0001
 PRETRAINED_HIDDEN_SIZE = 512
 HIDDEN_SIZE = 2048
 BATCH_SIZE = 1024
+
+def convert_to_one_hot(sample):
+    out = [np.zeros(BOARD_SIZE**2) for i in range(3)]
+    for idx in range(len(out)):
+        out[idx][sample[idx*2]+sample[idx*2+1]*BOARD_SIZE] = 1
+    return np.concatenate(out)
 
 def ints_to_hex(r, g, b):
     r = min(r, 255)
@@ -150,7 +159,10 @@ class FeatureExplorer:
         self._draw_ablations(self.ablations[feat_num], scale=self.SQUARE_SIZE, canv=self.canvas)
     
     def _get_play_board_state(self):
-        return np.array((*self.rook_pos, *self.wking_pos, *self.bking_pos))
+        if ONE_HOT:
+            return convert_to_one_hot(np.array((*self.rook_pos, *self.wking_pos, *self.bking_pos))) # TODO
+        else:
+            return np.array((*self.rook_pos, *self.wking_pos, *self.bking_pos))
     
     def view_move(self):
         board_state = self._get_play_board_state()
@@ -195,6 +207,7 @@ def gen_feat_acts(q, autoencoder):
 
     for n_state in range(len(board_states)):
         s = board_states[n_state]
+        if ONE_HOT: s = convert_to_one_hot(s)
         s_tensor = t.from_numpy(s).float().to(device)
         feature_activations.append(autoencoder.get_features(q.get_activations(s_tensor)))
         
