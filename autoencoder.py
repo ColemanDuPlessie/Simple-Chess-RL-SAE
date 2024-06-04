@@ -10,12 +10,19 @@ class QNetAutoencoder(nn.Module):
         self,
         in_size: int, hidden_size: int,
         pretrained_load_path: Optional[str] = None,
+        loss_sparsity_term = 0.01
     ):
         super().__init__()
 
         self.in_layer = nn.Linear(in_size, hidden_size)
         self.relu = nn.ReLU()
-        self.out_layer = nn.Linear(hidden_size, in_size)
+        self.out_layer = nn.utils.parametrizations.weight_norm(nn.Linear(hidden_size, in_size), name='weight')
+        self.out_layer.parametrizations.weight.original0 = nn.Parameter(t.ones(1, in_size), requires_grad = False)
+        
+        self.in_size = in_size
+        self.hidden_size = hidden_size
+        
+        self.loss_sparsity_term = loss_sparsity_term
 
         if pretrained_load_path is not None:
             self.load_pretrained(pretrained_load_path)
@@ -23,16 +30,18 @@ class QNetAutoencoder(nn.Module):
     def forward(self, x) -> Tuple[t.Tensor, t.Tensor, t.Tensor]:
         in_data = x.reshape(-1, x.shape[-1])
         with_bias = in_data + self.out_layer.bias
-        out = self.out_layer(self.relu(self.in_layer(with_bias)))
+        acts = self.relu(self.in_layer(with_bias))
+        out = self.out_layer(acts)
         out = out.reshape_as(x)
-        loss = F.mse_loss(out, x) # TODO
+        loss = F.mse_loss(out, x) + self.loss_sparsity_term * t.norm(acts, p=1)
         return loss, out
     
     def features_to_out(self, feats):
         return self.out_layer(self.relu(feats))
        
     def get_features(self, x):
-        return self.in_layer(x)
+        with_bias = x + self.out_layer.bias
+        return self.in_layer(with_bias)
     
     def forward_with_feature_ablation(self, x, feat_to_ablate, ablation_function=lambda x: 0):
         in_data = x.reshape(-1, x.shape[-1])
@@ -44,7 +53,12 @@ class QNetAutoencoder(nn.Module):
         return out
 
     def load_pretrained(self, path: str = "model/pytorch_model.bin") -> None:
-        self.load_state_dict(t.load(path, map_location=device))
+        try:
+            self.load_state_dict(t.load(path, map_location=device))
+        except RuntimeError: # Parameter mismatch due to loading old version of model
+            print("Autoencoder file does not match current implementation. Checking backwards compatibility...\nWarning: If backwards compatible, autoencoder will train poorly/have undefined behavior (you should probably try retraining from scratch). Inference will be fine, though")
+            self.out_layer = nn.Linear(self.hidden_size, self.in_size)
+            self.load_state_dict(t.load(path, map_location=device))
 
 if __name__ == "__main__":
     test_model = QNetAutoencoder(10, 20)

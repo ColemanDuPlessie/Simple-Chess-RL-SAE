@@ -14,7 +14,7 @@ QNET_PATH = "smarter_trained_rook_qnet.pt"
 num_episodes = 400000        
             
 LEARNING_RATE = 0.001
-REGULARIZATION_VALUE = 0.0025
+SPARSITY_TERM = 0.01
 PRETRAINED_HIDDEN_SIZE = 512
 HIDDEN_SIZE = 2048
 BATCH_SIZE = 2048
@@ -31,11 +31,11 @@ def main():
     env = gym.make('RookCheckmate-v0', random_opponent=False, one_hot_observation_space=True)
     q = t.load(QNET_PATH, map_location=device)
     
-    autoencoder = QNetAutoencoder(PRETRAINED_HIDDEN_SIZE, HIDDEN_SIZE).to(device)
+    autoencoder = QNetAutoencoder(PRETRAINED_HIDDEN_SIZE, HIDDEN_SIZE, loss_sparsity_term = SPARSITY_TERM).to(device)
 
     print_interval = 20
     score = 0.0  
-    optimizer = t.optim.Adam(autoencoder.parameters(), lr=LEARNING_RATE, weight_decay=REGULARIZATION_VALUE)
+    optimizer = t.optim.Adam(autoencoder.parameters(), lr=LEARNING_RATE)
     
     activations = []
     losses = []
