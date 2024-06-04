@@ -20,7 +20,7 @@ BOARD_SIZE = 5
 ONE_HOT = True
 
 QNET_PATH = "smarter_trained_rook_qnet.pt"
-AUTOENCODER_PATH = "smarter_trained_autoencoder.pt"
+AUTOENCODER_PATH = "more_priviledged_trained_autoencoder.pt"
             
 num_episodes = 25000        
             
@@ -49,8 +49,10 @@ class FeatureExplorer:
         self.frame = tk.Frame(tk_root)
         self.feature_input = tk.Text(self.frame, width=5, height=1)
         self.go_button = tk.Button(self.frame, text="View feature", width=10, command=self.view_feature)
-        self.custom_ablation_button = tk.Button(self.frame, text="View specific ablation", width=20, command=self.view_ablation)
+        self.custom_ablation_button = tk.Button(self.frame, text="View ablation (delta)", width=20, command=self.view_ablation)
+        self.ablated_run_button = tk.Button(self.frame, text="View ablation (result)", width=20, command=self.view_move_without_ablation)
         self.run_button = tk.Button(self.frame, text="Run full model", width=15, command=self.view_move)
+        self.run_autoencoder_button = tk.Button(self.frame, text="Run full model (with autoencoder)", width=30, command=self.view_move_with_autoencoder)
         self.play_canvas = tk.Canvas(self.frame, width=250, height=250, bg="#aabbcc")
         self.canvas = tk.Canvas(self.frame, width=160, height=100, bg="#ffeedd")
         self.mini_canvs = [tk.Canvas(self.frame, width=120, height=120, bg="#bbddbb") for i in range(10)]
@@ -63,11 +65,13 @@ class FeatureExplorer:
         self.play_canvas.bind("<Button-1>", self._play_board_clicked)
         
         self.feature_input.grid(row=0, column=1, columnspan=3)
-        self.go_button.grid(row=1, column=1)
-        self.custom_ablation_button.grid(row=1, column=2, columnspan=3)
+        self.go_button.grid(row=1, column=0)
+        self.custom_ablation_button.grid(row=1, column=1, columnspan=2)
+        self.ablated_run_button.grid(row=1, column=3, columnspan=2)
         self.canvas.grid(row=2, column=1, columnspan=3)
         self.play_canvas.grid(row=3, column=1, columnspan=3)
-        self.run_button.grid(row=4, column=1, columnspan=3)
+        self.run_button.grid(row=4, column=0, columnspan=2)
+        self.run_autoencoder_button.grid(row=4, column=2, columnspan=3)
         for idx, canv in enumerate(self.mini_canvs):
             canv.grid(row=5+2*(idx//5), column=idx%5)
             self.canv_labels[idx].grid(row=6+2*(idx//5), column=idx%5)
@@ -168,6 +172,24 @@ class FeatureExplorer:
         board_state = self._get_play_board_state()
         suggestion = self.q(t.from_numpy(board_state).float().to(device))
         self._draw_ablations(suggestion, scale=self.SQUARE_SIZE, canv=self.canvas, highlight=True)
+    
+    def view_move_with_autoencoder(self):
+        board_state = self._get_play_board_state()
+        activation = self.q.get_activations(t.from_numpy(board_state).float().to(device))
+        features = self.autoencoder.get_features(activation)
+        activation = self.autoencoder.features_to_out(features)
+        out = self.q.activations_to_out(activation)
+        self._draw_ablations(out, scale=self.SQUARE_SIZE, canv=self.canvas, highlight=True)
+    
+    def view_move_without_ablation(self):
+        feat_num = int(self.feature_input.get("1.0", "end-1c").split()[0])
+        board_state = self._get_play_board_state()
+        activation = self.q.get_activations(t.from_numpy(board_state).float().to(device))
+        features = self.autoencoder.get_features(activation)
+        features[feat_num] = 0
+        activation = self.autoencoder.features_to_out(features)
+        out = self.q.activations_to_out(activation)
+        self._draw_ablations(out, scale=self.SQUARE_SIZE, canv=self.canvas, highlight=True)
     
     def view_ablation(self):
         feat_num = int(self.feature_input.get("1.0", "end-1c").split()[0])

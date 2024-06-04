@@ -25,7 +25,7 @@ class QNetAutoencoder(nn.Module):
         with_bias = in_data + self.out_layer.bias
         out = self.out_layer(self.relu(self.in_layer(with_bias)))
         out = out.reshape_as(x)
-        loss = F.mse_loss(out, x)
+        loss = F.mse_loss(out, x) # TODO
         return loss, out
     
     def features_to_out(self, feats):
