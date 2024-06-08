@@ -1,5 +1,6 @@
 import os
 
+from itertools import permutations
 import numpy as np
 
 import gym
@@ -9,20 +10,26 @@ import torch as t
 from autoencoder import QNetAutoencoder
 from train_dqn import CheckmateQnet, device
 
-def gen_all_board_states(board_size=5, pieces=3):
+def convert_to_one_hot(sample, board_size=5):
+    out = [np.zeros(board_size**2) for i in range(3)]
+    for idx in range(len(out)):
+        out[idx][sample[idx*2]+sample[idx*2+1]*board_size] = 1
+    return np.concatenate(out)
+
+def gen_all_board_state_tensors(board_size=5, pieces=3):
     """
     Note that the only sanity-checking this
     does is to make sure two pieces don't occupy the same space.
     """
     spaces = [np.array((i, j)) for i in range(board_size) for j in range(board_size)]
     ans = permutations(spaces, pieces)
-    return [np.concatenate(pos) for pos in ans]
+    return t.stack([t.from_numpy(convert_to_one_hot(np.concatenate(pos), board_size)).float().to(device) for pos in ans])
 
 QNET_PATH = "smarter_trained_rook_qnet.pt"
 
 num_episodes = 400000
-resampling_points = [100000, 200000, 300000]
-resampling_prep_duration = 30000
+resampling_points = [15000, 100000, 200000, 300000]
+resampling_prep_duration = 10000
 resampling_prep_points = [point-resampling_prep_duration for point in resampling_points]
 
 LEARNING_RATE = 0.001
@@ -62,7 +69,7 @@ def main():
             autoencoder.prepare_for_resampling()
         
         if n_epi in resampling_points:
-            autoencoder.resample(gen_all_board_states(), verbose=True)
+            autoencoder.resample(gen_all_board_state_tensors(), preprocessing=q.get_activations, verbose=True)
             optimizer = t.optim.Adam(autoencoder.parameters(), lr=LEARNING_RATE) # TODO This doesn't seem like the most idiomatic way to reset the optimizer, but maybe it is... (c.f. https://discuss.pytorch.org/t/reset-optimizer-stats/78516/2)
 
         while not done:

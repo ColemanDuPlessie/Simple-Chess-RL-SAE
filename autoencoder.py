@@ -39,14 +39,14 @@ class QNetAutoencoder(nn.Module):
         with_bias = in_data + self.out_layer.bias
         acts = self.relu(self.in_layer(with_bias))
         if self.track_dead_neurons:
-            acted = t.gt(acts, t.zeros(acts.shape))
+            acted = t.gt(acts, t.zeros(acts.shape, device=device))
             self.dead_neurons = t.logical_and(self.dead_neurons, acted)
         out = self.out_layer(acts)
         out = out.reshape_as(x)
         loss = F.mse_loss(out, x) + self.loss_sparsity_term * t.norm(acts, p=1)
         return loss, out
         
-    def resample(self, full_dataset_in, minibatch_size=-1, resample_strength_weighting=0.2, verbose=False):
+    def resample(self, full_dataset_in, preprocessing=lambda x: x, resample_strength_weighting=0.2, verbose=False):
         """
         The current dataset is only on the order of 10k samples.
         If the dataset gets substantially larger, it would be wiser
@@ -63,19 +63,19 @@ class QNetAutoencoder(nn.Module):
         if num_dead_neurons == 0:
             print("Would have resampled some neurons, but none of them needed it.")
             return
-        minibatches = t.split(full_dataset_in, minibatch_size) if minibatch_size > 0 else (full_dataset_in, )
         losses = []
-        for minibatch in minibatches:
-            with_bias = minibatch + self.out_layer.bias
+        for sample in full_dataset_in: # TODO I think this is required because we need the element-wise loss, but there's a decent chance I just forgot about an alternative, which would probably be much faster if it exists
+            preprocessed = preprocessing(sample)
+            with_bias = preprocessed + self.out_layer.bias
             out = self.out_layer(self.relu(self.in_layer(with_bias)))
-            loss = F.mse_loss(out, minibatch)
+            loss = F.mse_loss(out, preprocessed)
             losses.append(loss)
-        losses = t.cat(losses)
+        losses = t.stack(losses)
         losses_squared = t.square(losses)
         print(losses_squared.shape)
         inputs_to_resample = t.multinomial(losses_squared, num_dead_neurons)
         
-        inputs_to_resample = [full_dataset_in[idx.item()] for idx in inputs_to_resample]
+        inputs_to_resample = [preprocessing(full_dataset_in[idx.item()]) for idx in inputs_to_resample]
         neurons_to_resample = t.nonzero(self.dead_neurons)
         with t.no_grad():
             for i in range(len(inputs_to_resample)):
