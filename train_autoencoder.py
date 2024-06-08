@@ -8,10 +8,14 @@ import torch as t
 
 from autoencoder import QNetAutoencoder
 from train_dqn import CheckmateQnet, device
+from visualize_autoencoder import gen_all_board_states
 
 QNET_PATH = "smarter_trained_rook_qnet.pt"
 
 num_episodes = 400000
+resampling_points = [100000, 200000, 300000]
+resampling_prep_duration = 30000
+resampling_prep_points = [point-resampling_prep_duration for point in resampling_points]
 
 LEARNING_RATE = 0.001
 SPARSITY_TERM = 0.000000025
@@ -45,6 +49,13 @@ def main():
         obs, _ = env.reset()
         s = np.concatenate(tuple(obs.values()))
         done = False
+        
+        if n_epi in resampling_prep_points:
+            autoencoder.prepare_for_resampling()
+        
+        if n_epi in resampling_points:
+            autoencoder.resample(gen_all_board_states(), verbose=True)
+            optimizer = t.optim.Adam(autoencoder.parameters(), lr=LEARNING_RATE) # TODO This doesn't seem like the most idiomatic way to reset the optimizer, but maybe it is... (c.f. https://discuss.pytorch.org/t/reset-optimizer-stats/78516/2)
 
         while not done:
             s_tensor = t.from_numpy(s).float().to(device)

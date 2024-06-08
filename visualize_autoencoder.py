@@ -2,6 +2,7 @@ import os
 from itertools import permutations
 from math import log, inf
 import tkinter as tk
+import matplotlib.pyplot as plt
 
 import numpy as np
 
@@ -20,14 +21,14 @@ BOARD_SIZE = 5
 ONE_HOT = True
 
 QNET_PATH = "smarter_trained_rook_qnet.pt"
-AUTOENCODER_PATH = "more_priviledged_trained_autoencoder.pt"
+AUTOENCODER_PATH = "4096_neuron_trained_autoencoder.pt"
             
 num_episodes = 25000        
             
 LEARNING_RATE = 0.001
 REGULARIZATION_VALUE = 0.0001
 PRETRAINED_HIDDEN_SIZE = 512
-HIDDEN_SIZE = 2048
+HIDDEN_SIZE = 4096
 BATCH_SIZE = 1024
 
 def convert_to_one_hot(sample):
@@ -45,7 +46,7 @@ def ints_to_hex(r, g, b):
 class FeatureExplorer:
     def __init__(self, tk_root, activations, ablations, q=None, autoencoder=None):
         self.root = tk_root
-        self.board_size = ablations[0].shape[0]//4-2 # Note that this is 1 less than the actual board size: it's the maximum number of spaces a rook can possibly move in a straight line
+        self.board_size = BOARD_SIZE-1 # Note that this is 1 less than the actual board size: it's the maximum number of spaces a rook can possibly move in a straight line
         self.frame = tk.Frame(tk_root)
         self.feature_input = tk.Text(self.frame, width=5, height=1)
         self.go_button = tk.Button(self.frame, text="View feature", width=10, command=self.view_feature)
@@ -96,7 +97,7 @@ class FeatureExplorer:
         self.board_states = activations[0]
         self.feat_acts = activations[1]
         self.ablations = ablations
-        self.max_ablation_magnitude = max([t.abs(ablation).max().item() for ablation in self.ablations])
+        self.max_ablation_magnitude = max([t.abs(ablation).max().item() for ablation in self.ablations]) if self.ablations is not None else 1
         print(self.max_ablation_magnitude)
         self.MIN_ABLATION = np.array((255, 0, 0))
         self.ZERO_ABLATION = np.array((127, 127, 127))
@@ -159,8 +160,9 @@ class FeatureExplorer:
                 self._draw_square((scale*(11+move[0]*dist), scale*(5+move[1]*dist)), ints_to_hex(*color), scale, canv)
             
     def view_feature(self):
-        feat_num = int(self.feature_input.get("1.0", "end-1c").split()[0])
-        self._draw_ablations(self.ablations[feat_num], scale=self.SQUARE_SIZE, canv=self.canvas)
+        print("This feature is not currently implemented as it uses too much RAM for large models. However, it wasn't useful anyway.")
+        # feat_num = int(self.feature_input.get("1.0", "end-1c").split()[0])
+        # self._draw_ablations(self.ablations[feat_num], scale=self.SQUARE_SIZE, canv=self.canvas)
     
     def _get_play_board_state(self):
         if ONE_HOT:
@@ -196,8 +198,8 @@ class FeatureExplorer:
         board_state = self._get_play_board_state()
         activation = self.q.get_activations(t.from_numpy(board_state).float().to(device))
         features = self.autoencoder.get_features(activation)
-        ablation = gen_ablations(features, self.q, self.autoencoder)
-        self._draw_ablations(ablation[feat_num], scale=self.SQUARE_SIZE, canv=self.canvas)
+        ablation = gen_one_ablation(features, self.q, self.autoencoder, feat_num)
+        self._draw_ablations(ablation, scale=self.SQUARE_SIZE, canv=self.canvas)
     
     def view_activation_boards(self):
         feat_num = int(self.feature_input.get("1.0", "end-1c").split()[0])
@@ -235,6 +237,13 @@ def gen_feat_acts(q, autoencoder):
         
     return board_states, feature_activations
 
+def gen_one_ablation(activation, q, autoencoder, feat_idx):
+    pre = q.activations_to_out(autoencoder.features_to_out(activation))
+    ablated = activation.clone()
+    ablated[feat_idx] = 0
+    post = q.activations_to_out(autoencoder.features_to_out(ablated))
+    return pre - post
+
 def gen_ablations(activation, q, autoencoder):
     ablation_effects = []
     pre_ablation = q.activations_to_out(autoencoder.features_to_out(activation))
@@ -247,6 +256,9 @@ def gen_ablations(activation, q, autoencoder):
     
     return ablation_effects
 
+def graph_hist_feat_acts(feat_acts):
+    pass # TODO
+
 def main():
     q = t.load(QNET_PATH, map_location=device)
     autoencoder = QNetAutoencoder(PRETRAINED_HIDDEN_SIZE, HIDDEN_SIZE).to(device)
@@ -255,15 +267,20 @@ def main():
     q.eval()
     autoencoder.eval()
     
+    print("Loaded model, now generating activations...")
+    
     board_states, feature_activations = gen_feat_acts(q, autoencoder)
+    
+    print("Generated activations, now generating generic ablations...")
     
     feature_tensor = t.stack(feature_activations, dim=0)
     mean_activation = t.mean(feature_tensor, dim=0)
     
-    ablation_effects = gen_ablations(mean_activation, q, autoencoder)
+    print("Skipping generic ablation generation...")
+    # ablation_effects = gen_ablations(mean_activation, q, autoencoder)
     
     print(f"Data successfully generated! Input a feature # (up to but not including {HIDDEN_SIZE}) to see a visualization of that feature.")
-    f = FeatureExplorer(root, (board_states, feature_activations), ablation_effects, q, autoencoder)
+    f = FeatureExplorer(root, (board_states, feature_activations), None, q, autoencoder)
     root.mainloop()
         
 

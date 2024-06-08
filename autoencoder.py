@@ -10,7 +10,7 @@ class QNetAutoencoder(nn.Module):
         self,
         in_size: int, hidden_size: int,
         pretrained_load_path: Optional[str] = None,
-        loss_sparsity_term = 0.01
+        loss_sparsity_term = 0.01,
     ):
         super().__init__()
 
@@ -23,18 +23,64 @@ class QNetAutoencoder(nn.Module):
         self.hidden_size = hidden_size
         
         self.loss_sparsity_term = loss_sparsity_term
+        
+        self.track_dead_neurons = False
+        self.dead_neurons = t.ones(hidden_size, device=device, dtype=t.bool)
 
         if pretrained_load_path is not None:
             self.load_pretrained(pretrained_load_path)
+    
+    def prepare_for_resampling(self):
+        self.track_dead_neurons = True
+        self.dead_neurons = t.ones(self.hidden_size, device=device, dtype=t.bool)
 
     def forward(self, x) -> Tuple[t.Tensor, t.Tensor, t.Tensor]:
         in_data = x.reshape(-1, x.shape[-1])
         with_bias = in_data + self.out_layer.bias
         acts = self.relu(self.in_layer(with_bias))
+        if self.track_dead_neurons:
+            acted = t.gt(acts, t.zeros(acts.shape))
+            self.dead_neurons = t.logical_and(self.dead_neurons, acted)
         out = self.out_layer(acts)
         out = out.reshape_as(x)
         loss = F.mse_loss(out, x) + self.loss_sparsity_term * t.norm(acts, p=1)
         return loss, out
+        
+    def resample(self, full_dataset_in, minibatch_size=-1, resample_strength_weighting=0.2, verbose=False):
+        """
+        The current dataset is only on the order of 10k samples.
+        If the dataset gets substantially larger, it would be wiser
+        to just use a large random subset (e.g. Anthropic uses 819k
+        inputs when training the SAE on an LLM) of the dataset
+        
+        Follows the pattern laid out in Anthropic's paper:
+        https://transformer-circuits.pub/2023/monosemantic-features#appendix-autoencoder-resampling
+        
+        DON'T FORGET TO RESET THE ADAM OPTIMIZER AFTER CALLING THIS FUNCTION
+        """
+        num_dead_neurons = t.sum(self.dead_neurons)
+        minibatches = t.split(full_dataset_in, minibatch_size) if minibatch_size > 0 else (full_dataset_in, )
+        losses = []
+        for minibatch in minibatches:
+            with_bias = minibatch + self.out_layer.bias
+            out = self.out_layer(self.relu(self.in_layer(with_bias)))
+            loss = F.mse_loss(out, minibatch)
+            losses.append(loss)
+        losses = t.cat(losses)
+        losses_squared = t.square(losses)
+        print(losses_squared.shape)
+        inputs_to_resample = t.multinomial(losses_squared, num_dead_neurons)
+        
+        inputs_to_resample = [full_dataset_in[idx.item()] for idx in inputs_to_resample]
+        neurons_to_resample = t.nonzero(self.dead_neurons)
+        with t.no_grad():
+            for i in range(len(inputs_to_resample)):
+                self.out_layer.parametrizations.weight.original1[:, neurons_to_resample[i]] = t.reshape(inputs_to_resample[i], (-1,))
+                self.in_layer.weight[neurons_to_resample[i], :] = t.reshape(inputs_to_resample[i], (-1,))*resample_strength_weighting
+                self.in_layer.bias[neurons_to_resample[i]] = 0
+        self.track_dead_neurons = False
+        if verbose:
+            print(f"Successfully resampled {num_dead_neurons} dead neurons!")
     
     def features_to_out(self, feats):
         return self.out_layer(self.relu(feats))
