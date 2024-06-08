@@ -8,7 +8,15 @@ import torch as t
 
 from autoencoder import QNetAutoencoder
 from train_dqn import CheckmateQnet, device
-from visualize_autoencoder import gen_all_board_states
+
+def gen_all_board_states(board_size=5, pieces=3):
+    """
+    Note that the only sanity-checking this
+    does is to make sure two pieces don't occupy the same space.
+    """
+    spaces = [np.array((i, j)) for i in range(board_size) for j in range(board_size)]
+    ans = permutations(spaces, pieces)
+    return [np.concatenate(pos) for pos in ans]
 
 QNET_PATH = "smarter_trained_rook_qnet.pt"
 
