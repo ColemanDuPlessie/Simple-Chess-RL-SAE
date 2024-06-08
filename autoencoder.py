@@ -59,6 +59,10 @@ class QNetAutoencoder(nn.Module):
         DON'T FORGET TO RESET THE ADAM OPTIMIZER AFTER CALLING THIS FUNCTION
         """
         num_dead_neurons = t.sum(self.dead_neurons)
+        self.track_dead_neurons = False
+        if num_dead_neurons == 0:
+            print("Would have resampled some neurons, but none of them needed it.")
+            return
         minibatches = t.split(full_dataset_in, minibatch_size) if minibatch_size > 0 else (full_dataset_in, )
         losses = []
         for minibatch in minibatches:
@@ -78,7 +82,6 @@ class QNetAutoencoder(nn.Module):
                 self.out_layer.parametrizations.weight.original1[:, neurons_to_resample[i]] = t.reshape(inputs_to_resample[i], (-1,))
                 self.in_layer.weight[neurons_to_resample[i], :] = t.reshape(inputs_to_resample[i], (-1,))*resample_strength_weighting
                 self.in_layer.bias[neurons_to_resample[i]] = 0
-        self.track_dead_neurons = False
         if verbose:
             print(f"Successfully resampled {num_dead_neurons} dead neurons!")
     
