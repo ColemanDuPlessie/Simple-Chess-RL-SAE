@@ -39,7 +39,7 @@ class QNetAutoencoder(nn.Module):
         with_bias = in_data + self.out_layer.bias
         acts = self.relu(self.in_layer(with_bias))
         if self.track_dead_neurons:
-            acted = t.gt(acts, t.zeros(acts.shape, device=device))
+            acted = t.gt(t.sum(acts, dim=0), t.zeros(acts.shape[1:], device=device))
             self.dead_neurons = t.logical_and(self.dead_neurons, acted)
         out = self.out_layer(acts)
         out = out.reshape_as(x)
@@ -58,28 +58,31 @@ class QNetAutoencoder(nn.Module):
         
         DON'T FORGET TO RESET THE ADAM OPTIMIZER AFTER CALLING THIS FUNCTION
         """
+        print(self.dead_neurons, self.dead_neurons.shape)
         num_dead_neurons = t.sum(self.dead_neurons)
+        if verbose: print(f"Resampling {num_dead_neurons} neurons...")
         self.track_dead_neurons = False
         if num_dead_neurons == 0:
             print("Would have resampled some neurons, but none of them needed it.")
             return
         losses = []
-        for sample in full_dataset_in: # TODO I think this is required because we need the element-wise loss, but there's a decent chance I just forgot about an alternative, which would probably be much faster if it exists
-            preprocessed = preprocessing(sample)
-            with_bias = preprocessed + self.out_layer.bias
-            out = self.out_layer(self.relu(self.in_layer(with_bias)))
-            loss = F.mse_loss(out, preprocessed)
-            losses.append(loss)
-        losses = t.stack(losses)
-        losses_squared = t.square(losses)
-        print(losses_squared.shape)
-        inputs_to_resample = t.multinomial(losses_squared, num_dead_neurons)
-        
-        inputs_to_resample = [preprocessing(full_dataset_in[idx.item()]) for idx in inputs_to_resample]
-        neurons_to_resample = t.nonzero(self.dead_neurons)
         with t.no_grad():
+            for idx, sample in enumerate(full_dataset_in): # TODO I think this is required because we need the element-wise loss, but there's a decent chance I just forgot about an alternative, which would probably be much faster if it exists
+                if verbose: print(f"Processing sample {idx}")
+                preprocessed = preprocessing(sample)
+                with_bias = preprocessed + self.out_layer.bias
+                out = self.out_layer(self.relu(self.in_layer(with_bias)))
+                loss = F.mse_loss(out, preprocessed)
+                losses.append(loss)
+            losses = t.stack(losses)
+            losses_squared = t.square(losses)
+            print(losses_squared.shape)
+            inputs_to_resample = t.multinomial(losses_squared, num_dead_neurons)
+            
+            inputs_to_resample = [preprocessing(full_dataset_in[idx.item()]) for idx in inputs_to_resample]
+            neurons_to_resample = t.nonzero(self.dead_neurons)
             for i in range(len(inputs_to_resample)):
-                self.out_layer.parametrizations.weight.original1[:, neurons_to_resample[i]] = t.reshape(inputs_to_resample[i], (-1,))
+                self.out_layer.parametrizations.weight.original1[:, neurons_to_resample[i]] = t.reshape(inputs_to_resample[i], (-1, 1))
                 self.in_layer.weight[neurons_to_resample[i], :] = t.reshape(inputs_to_resample[i], (-1,))*resample_strength_weighting
                 self.in_layer.bias[neurons_to_resample[i]] = 0
         if verbose:
@@ -110,7 +113,15 @@ class QNetAutoencoder(nn.Module):
             self.load_state_dict(t.load(path, map_location=device))
 
 if __name__ == "__main__":
-    test_model = QNetAutoencoder(10, 20)
-    input_ids = t.rand(8, 1, 16, 10)
-    loss, out = test_model(input_ids)
+    from train_dqn import CheckmateQnet
+    from train_autoencoder import gen_all_board_state_tensors
+    q = CheckmateQnet(24, 75, 512)
+    a = QNetAutoencoder(512, 2024)
+    a.prepare_for_resampling()
+    rand_in = t.rand(16, 75)
+    acts = q.get_activations(rand_in)
+    loss, acts = a(acts)
+    out = q.activations_to_out(acts)
+    all_boards = gen_all_board_state_tensors()
+    a.resample(all_boards, q.get_activations, verbose=True)
     print("Done")
