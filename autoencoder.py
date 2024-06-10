@@ -25,14 +25,14 @@ class QNetAutoencoder(nn.Module):
         self.loss_sparsity_term = loss_sparsity_term
         
         self.track_dead_neurons = False
-        self.dead_neurons = t.ones(hidden_size, device=device, dtype=t.bool)
+        self.live_neurons = t.ones(hidden_size, device=device, dtype=t.bool)
 
         if pretrained_load_path is not None:
             self.load_pretrained(pretrained_load_path)
     
     def prepare_for_resampling(self):
         self.track_dead_neurons = True
-        self.dead_neurons = t.ones(self.hidden_size, device=device, dtype=t.bool)
+        self.live_neurons = t.ones(self.hidden_size, device=device, dtype=t.bool)
 
     def forward(self, x) -> Tuple[t.Tensor, t.Tensor, t.Tensor]:
         in_data = x.reshape(-1, x.shape[-1])
@@ -40,7 +40,7 @@ class QNetAutoencoder(nn.Module):
         acts = self.relu(self.in_layer(with_bias))
         if self.track_dead_neurons:
             acted = t.gt(t.sum(acts, dim=0), t.zeros(acts.shape[1:], device=device))
-            self.dead_neurons = t.logical_and(self.dead_neurons, acted)
+            self.live_neurons = t.logical_and(self.live_neurons, acted)
         out = self.out_layer(acts)
         out = out.reshape_as(x)
         loss = F.mse_loss(out, x) + self.loss_sparsity_term * t.norm(acts, p=1)
@@ -58,8 +58,8 @@ class QNetAutoencoder(nn.Module):
         
         DON'T FORGET TO RESET THE ADAM OPTIMIZER AFTER CALLING THIS FUNCTION
         """
-        print(self.dead_neurons, self.dead_neurons.shape)
-        num_dead_neurons = t.sum(self.dead_neurons)
+        dead_neurons = t.logical_not(self.live_neurons)
+        num_dead_neurons = t.sum(dead_neurons)
         if verbose: print(f"Resampling {num_dead_neurons} neurons...")
         self.track_dead_neurons = False
         if num_dead_neurons == 0:
@@ -78,7 +78,7 @@ class QNetAutoencoder(nn.Module):
             print(losses_squared.shape)
             inputs_to_resample = t.multinomial(losses_squared, num_dead_neurons)
             
-            neurons_to_resample = t.nonzero(self.dead_neurons)
+            neurons_to_resample = t.nonzero(dead_neurons)
             
             total_active_norm = 0
             for i in range(self.hidden_size):
