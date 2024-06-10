@@ -68,7 +68,6 @@ class QNetAutoencoder(nn.Module):
         losses = []
         with t.no_grad():
             for idx, sample in enumerate(full_dataset_in): # TODO I think this is required because we need the element-wise loss, but there's a decent chance I just forgot about an alternative, which would probably be much faster if it exists
-                if verbose: print(f"Processing sample {idx}")
                 preprocessed = preprocessing(sample)
                 with_bias = preprocessed + self.out_layer.bias
                 out = self.out_layer(self.relu(self.in_layer(with_bias)))
@@ -79,11 +78,20 @@ class QNetAutoencoder(nn.Module):
             print(losses_squared.shape)
             inputs_to_resample = t.multinomial(losses_squared, num_dead_neurons)
             
-            inputs_to_resample = [preprocessing(full_dataset_in[idx.item()]) for idx in inputs_to_resample]
             neurons_to_resample = t.nonzero(self.dead_neurons)
+            
+            total_active_norm = 0
+            for i in range(self.hidden_size):
+                if i not in neurons_to_resample:
+                    total_active_norm += t.norm(self.in_layer.weight[i], p=2)
+            avg_active_norm = total_active_norm / (self.hidden_size - num_dead_neurons)
+            print(f"Average norm of encoder weights of active neurons: {avg_active_norm}")
+            
+            inputs_to_resample = [preprocessing(full_dataset_in[idx.item()]) for idx in inputs_to_resample]
+            inputs_to_resample = [act/t.norm(act, p=2) for act in inputs_to_resample]
             for i in range(len(inputs_to_resample)):
                 self.out_layer.parametrizations.weight.original1[:, neurons_to_resample[i]] = t.reshape(inputs_to_resample[i], (-1, 1))
-                self.in_layer.weight[neurons_to_resample[i], :] = t.reshape(inputs_to_resample[i], (-1,))*resample_strength_weighting
+                self.in_layer.weight[neurons_to_resample[i], :] = t.reshape(inputs_to_resample[i], (-1,))*resample_strength_weighting*avg_active_norm
                 self.in_layer.bias[neurons_to_resample[i]] = 0
         if verbose:
             print(f"Successfully resampled {num_dead_neurons} dead neurons!")
