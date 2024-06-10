@@ -25,22 +25,22 @@ class QNetAutoencoder(nn.Module):
         self.loss_sparsity_term = loss_sparsity_term
         
         self.track_dead_neurons = False
-        self.live_neurons = t.ones(hidden_size, device=device, dtype=t.bool)
+        self.live_neurons = t.zeros(hidden_size, device=device, dtype=t.bool)
 
         if pretrained_load_path is not None:
             self.load_pretrained(pretrained_load_path)
     
     def prepare_for_resampling(self):
         self.track_dead_neurons = True
-        self.live_neurons = t.ones(self.hidden_size, device=device, dtype=t.bool)
+        self.live_neurons = t.zeros(self.hidden_size, device=device, dtype=t.bool) # Assume neurons are dead until we see them fire once
 
     def forward(self, x) -> Tuple[t.Tensor, t.Tensor, t.Tensor]:
         in_data = x.reshape(-1, x.shape[-1])
         with_bias = in_data + self.out_layer.bias
         acts = self.relu(self.in_layer(with_bias))
         if self.track_dead_neurons:
-            acted = t.gt(t.sum(acts, dim=0), t.zeros(acts.shape[1:], device=device))
-            self.live_neurons = t.logical_and(self.live_neurons, acted)
+            acted = t.gt(t.sum(acts, dim=0), t.zeros(acts.shape[1:], device=device)) # This is only true for a neuron if it activated at least once
+            self.live_neurons = t.logical_or(self.live_neurons, acted) # A neuron is live if we already knew it was live or if it just fired
         out = self.out_layer(acts)
         out = out.reshape_as(x)
         loss = F.mse_loss(out, x) + self.loss_sparsity_term * t.norm(acts, p=1)
