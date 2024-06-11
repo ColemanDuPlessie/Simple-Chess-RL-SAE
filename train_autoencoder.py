@@ -33,7 +33,7 @@ resampling_prep_duration = 30000
 resampling_prep_points = [point-resampling_prep_duration for point in resampling_points]
 
 LEARNING_RATE = 0.001
-SPARSITY_TERM = 0.000000025
+SPARSITY_TERM = 0.000000005
 PRETRAINED_HIDDEN_SIZE = 512
 HIDDEN_SIZE = 4096
 BATCH_SIZE = 2048
