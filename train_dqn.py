@@ -170,8 +170,8 @@ def train(q, q_target, memory, optimizer):
 
 def main():
     env = gym.make('RookCheckmate-v0', random_opponent=False, one_hot_observation_space=ONE_HOT_OBS_SPACE)
-    q = CheckmateQnet(hidden_size=512, observation_size=OBS_SIZE).to(device)
-    q_target = CheckmateQnet(hidden_size=512, observation_size=OBS_SIZE).to(device)
+    q = CheckmateQnet(hidden_size=128, observation_size=OBS_SIZE).to(device)
+    q_target = CheckmateQnet(hidden_size=128, observation_size=OBS_SIZE).to(device)
     q_target.load_state_dict(q.state_dict())
     memory = ReplayBuffer()
 
@@ -213,7 +213,7 @@ def main():
             score = 0.0
     env.close()
     
-    torch.save(q, "smarter_trained_rook_qnet.pt")
+    torch.save(q, "128_neuron_trained_rook_qnet.pt")
 
 if __name__ == '__main__':
     main()
