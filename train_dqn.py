@@ -220,7 +220,7 @@ def main():
             score = 0.0
     env.close()
     
-    torch.save(q, "128_neuron_trained_rook_qnet.pt")
+    torch.save(q, "1_layer_trained_rook_qnet.pt")
 
 if __name__ == '__main__':
     main()

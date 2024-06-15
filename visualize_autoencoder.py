@@ -179,6 +179,9 @@ class FeatureExplorer:
         board_state = self._get_play_board_state()
         activation = self.q.get_activations(t.from_numpy(board_state).float().to(device))
         features = self.autoencoder.get_features(activation)
+        for i in range(len(features)):
+            if features[i] > 0:
+                print(f"Feature {i} is active with value {features[i]}!")
         activation = self.autoencoder.features_to_out(features)
         out = self.q.activations_to_out(activation)
         self._draw_ablations(out, scale=self.SQUARE_SIZE, canv=self.canvas, highlight=True)

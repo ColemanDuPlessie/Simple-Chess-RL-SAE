@@ -6,7 +6,7 @@ from train_dqn import CheckmateQnet
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
-QNET_PATH = "smarter_trained_rook_qnet.pt"
+QNET_PATH = "128_neuron_trained_rook_qnet.pt"
             
 num_steps = 100
 
