@@ -25,7 +25,7 @@ def gen_all_board_state_tensors(board_size=5, pieces=3):
     ans = permutations(spaces, pieces)
     return t.stack([t.from_numpy(convert_to_one_hot(np.concatenate(pos), board_size)).float().to(device) for pos in ans])
 
-QNET_PATH = "smarter_trained_rook_qnet.pt"
+QNET_PATH = "128_neuron_trained_rook_qnet.pt"
 
 num_episodes = 400000
 resampling_points = [100000, 200000, 300000]
@@ -33,9 +33,13 @@ resampling_prep_duration = 30000
 resampling_prep_points = [point-resampling_prep_duration for point in resampling_points]
 
 LEARNING_RATE = 0.001
-SPARSITY_TERM = 0.0000000005
-PRETRAINED_HIDDEN_SIZE = 512
-HIDDEN_SIZE = 4096
+
+SPARSITY_TERM = 0 # 0.0000000005
+USE_TOPK = True
+TOPK_K = 20
+
+PRETRAINED_HIDDEN_SIZE = 128
+HIDDEN_SIZE = 1024
 BATCH_SIZE = 2048
 
 def train_one_epoch(autoencoder, optimizer, data):
@@ -50,7 +54,7 @@ def main():
     env = gym.make('RookCheckmate-v0', random_opponent=False, one_hot_observation_space=True)
     q = t.load(QNET_PATH, map_location=device)
     
-    autoencoder = QNetAutoencoder(PRETRAINED_HIDDEN_SIZE, HIDDEN_SIZE, loss_sparsity_term = SPARSITY_TERM).to(device)
+    autoencoder = QNetAutoencoder(PRETRAINED_HIDDEN_SIZE, HIDDEN_SIZE, loss_sparsity_term = SPARSITY_TERM, topk_activation = USE_TOPK, k = TOPK_K).to(device)
 
     print_interval = 20
     score = 0.0  
@@ -96,7 +100,7 @@ def main():
             print("n_episode :{}, score : {:.1f}".format(n_epi, score/print_interval))
             score = 0.0
     env.close()
-    t.save(autoencoder.state_dict(), "4096_neuron_trained_autoencoder.pt")
+    t.save(autoencoder.state_dict(), "small_topk_trained_autoencoder.pt")
 
 if __name__ == "__main__":
     main()
