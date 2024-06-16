@@ -11,9 +11,9 @@ class QNetAutoencoder(nn.Module):
         self,
         in_size: int, hidden_size: int,
         pretrained_load_path: Optional[str] = None,
-        loss_sparsity_term = 0.01: float,
-        topk_activation = False: bool,
-        k = 16: int
+        loss_sparsity_term: float = 0.01,
+        topk_activation: bool = False,
+        k: int = 16
     ):
         super().__init__()
 

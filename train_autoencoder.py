@@ -28,7 +28,7 @@ def gen_all_board_state_tensors(board_size=5, pieces=3):
 QNET_PATH = "128_neuron_trained_rook_qnet.pt"
 
 num_episodes = 400000
-resampling_points = [100000, 200000, 300000]
+resampling_points = []# [100000, 200000, 300000]
 resampling_prep_duration = 30000
 resampling_prep_points = [point-resampling_prep_duration for point in resampling_points]
 
