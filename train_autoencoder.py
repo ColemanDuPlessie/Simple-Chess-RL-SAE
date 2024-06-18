@@ -1,4 +1,5 @@
 import os
+import argparse
 
 from itertools import permutations
 import numpy as np
@@ -25,7 +26,8 @@ def gen_all_board_state_tensors(board_size=5, pieces=3):
     ans = permutations(spaces, pieces)
     return t.stack([t.from_numpy(convert_to_one_hot(np.concatenate(pos), board_size)).float().to(device) for pos in ans])
 
-QNET_PATH = "128_neuron_trained_rook_qnet.pt"
+DEFAULT_QNET_PATH = "128_neuron_trained_rook_qnet.pt"
+DEFAULT_OUT_PATH = "small_topk_trained_autoencoder.pt"
 
 num_episodes = 400000
 resampling_points = []# [100000, 200000, 300000]
@@ -35,11 +37,10 @@ resampling_prep_points = [point-resampling_prep_duration for point in resampling
 LEARNING_RATE = 0.001
 
 SPARSITY_TERM = 0 # 0.0000000005
-USE_TOPK = True
-TOPK_K = 20
+DEFAULT_TOPK_K = 20
 
-PRETRAINED_HIDDEN_SIZE = 128
-HIDDEN_SIZE = 1024
+DEFAULT_PRETRAINED_HIDDEN_SIZE = 128
+DEFAULT_HIDDEN_SIZE = 1024
 BATCH_SIZE = 2048
 
 def train_one_epoch(autoencoder, optimizer, data):
@@ -50,11 +51,12 @@ def train_one_epoch(autoencoder, optimizer, data):
     return loss, out
             
 
-def main():
+def main(in_path=DEFAULT_QNET_PATH, out_path=DEFAULT_OUT_PATH, topk_k = None, pretrained_hidden_size=DEFAULT_PRETRAINED_HIDDEN_SIZE, hidden_size=DEFAULT_HIDDEN_SIZE):
     env = gym.make('RookCheckmate-v0', random_opponent=False, one_hot_observation_space=True)
-    q = t.load(QNET_PATH, map_location=device)
+    q = t.load(in_path, map_location=device)
     
-    autoencoder = QNetAutoencoder(PRETRAINED_HIDDEN_SIZE, HIDDEN_SIZE, loss_sparsity_term = SPARSITY_TERM, topk_activation = USE_TOPK, k = TOPK_K).to(device)
+    use_topk = (topk_k == None or topk_k <= 0)
+    autoencoder = QNetAutoencoder(pretrained_hidden_size, hidden_size, loss_sparsity_term = SPARSITY_TERM, topk_activation = use_topk, k = topk_k).to(device)
 
     print_interval = 20
     score = 0.0  
@@ -100,8 +102,15 @@ def main():
             print("n_episode :{}, score : {:.1f}".format(n_epi, score/print_interval))
             score = 0.0
     env.close()
-    t.save(autoencoder.state_dict(), "small_topk_trained_autoencoder.pt")
+    t.save(autoencoder.state_dict(), out_path)
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-o", "--out", default=DEFAULT_OUT_PATH, help="Out filename to save autoencoder to")
+    parser.add_argument("-i", "--in", default=DEFAULT_QNET_PATH, help="In filename to read qnet from")
+    parser.add_argument("-a", "--activation", default=DEFAULT_PRETRAINED_HIDDEN_SIZE, help="Size of activation space of qnet", type=int)
+    parser.add_argument("-f", "--feature", default=DEFAULT_HIDDEN_SIZE, help="Size of feature space of trained autoencoder", type=int)
+    parser.add_argument("-k", "--topk", default=DEFAULT_TOPK_K, help="Number of simultaneously active autoencoder neurons (use k=0 to use relu instead)", type=int)
+    args = parser.parse_args()
+    main(in_path=args.in, out_path=args.out, topk_k=args.topk, pretrained_hidden_size=args.activation, hidden_size=args.feature)
     print("Program terminated successfully!")
