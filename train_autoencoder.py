@@ -106,11 +106,12 @@ def main(in_path=DEFAULT_QNET_PATH, out_path=DEFAULT_OUT_PATH, topk_k = None, pr
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("-o", "--out", default=DEFAULT_OUT_PATH, help="Out filename to save autoencoder to")
-    parser.add_argument("-i", "--in", default=DEFAULT_QNET_PATH, help="In filename to read qnet from")
+    parser.add_argument("-o", "--outfile", default=DEFAULT_OUT_PATH, help="Out filename to save autoencoder to")
+    parser.add_argument("-i", "--infile", default=DEFAULT_QNET_PATH, help="In filename to read qnet from")
     parser.add_argument("-a", "--activation", default=DEFAULT_PRETRAINED_HIDDEN_SIZE, help="Size of activation space of qnet", type=int)
     parser.add_argument("-f", "--feature", default=DEFAULT_HIDDEN_SIZE, help="Size of feature space of trained autoencoder", type=int)
     parser.add_argument("-k", "--topk", default=DEFAULT_TOPK_K, help="Number of simultaneously active autoencoder neurons (use k=0 to use relu instead)", type=int)
     args = parser.parse_args()
-    main(in_path=args.in, out_path=args.out, topk_k=args.topk, pretrained_hidden_size=args.activation, hidden_size=args.feature)
+    print(args)
+    main(in_path=args.infile, out_path=args.outfile, topk_k=args.topk, pretrained_hidden_size=args.activation, hidden_size=args.feature)
     print("Program terminated successfully!")
