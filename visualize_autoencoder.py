@@ -20,16 +20,13 @@ root = tk.Tk()
 BOARD_SIZE = 5
 ONE_HOT = True
 
-QNET_PATH = "smarter_trained_rook_qnet.pt"
-AUTOENCODER_PATH = "4096_neuron_trained_autoencoder.pt"
+QNET_PATH = "128_neuron_trained_rook_qnet.pt"
+AUTOENCODER_PATH = "small_topk_trained_autoencoder.pt"      
             
-num_episodes = 25000        
-            
-LEARNING_RATE = 0.001
-REGULARIZATION_VALUE = 0.0001
-PRETRAINED_HIDDEN_SIZE = 512
-HIDDEN_SIZE = 4096
-BATCH_SIZE = 1024
+TOPK_ACT = True
+K = 20
+PRETRAINED_HIDDEN_SIZE = 128
+HIDDEN_SIZE = 1024
 
 def convert_to_one_hot(sample):
     out = [np.zeros(BOARD_SIZE**2) for i in range(3)]
@@ -260,11 +257,22 @@ def gen_ablations(activation, q, autoencoder):
     return ablation_effects
 
 def graph_hist_feat_acts(feat_acts):
-    pass # TODO
+    num_feats = feat_acts[0].shape[0]
+    num_samples = len(feat_acts)
+    act_counts = t.zeros(num_feats)
+    zero = t.zeros(num_feats)
+    for act in feat_acts:
+        acted = t.gt(act, zero)
+        act_counts += acted
+    act_counts = t.clamp(act_counts, min=0.01) # This is to prevent log10(0) = -inf. instead, it will be 2 OOMs below the lowest "real" activation
+    act_freqs = act_counts / num_samples
+    act_log_freqs = t.log10(act_freqs)
+    plt.hist(act_log_freqs)
+    plt.show() # TODO make this pretty
 
 def main():
     q = t.load(QNET_PATH, map_location=device)
-    autoencoder = QNetAutoencoder(PRETRAINED_HIDDEN_SIZE, HIDDEN_SIZE).to(device)
+    autoencoder = QNetAutoencoder(PRETRAINED_HIDDEN_SIZE, HIDDEN_SIZE, topk_activation=TOPK_ACT, k=K).to(device)
     autoencoder.load_pretrained(AUTOENCODER_PATH)
     
     q.eval()
@@ -275,6 +283,8 @@ def main():
     board_states, feature_activations = gen_feat_acts(q, autoencoder)
     
     print("Generated activations, now generating generic ablations...")
+    
+    graph_hist_feat_acts(feature_activations)
     
     feature_tensor = t.stack(feature_activations, dim=0)
     mean_activation = t.mean(feature_tensor, dim=0)

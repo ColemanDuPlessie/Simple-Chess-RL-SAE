@@ -1,0 +1,13 @@
+TRAINED MODEL LIST:
+
+QNETS: (use one of the first 3. The third performs somewhat worse than the first 2. The first seems to be the best by a slight margin)
+    - smarter_trained_rook_qnet.pt: 3 Linear layers (2 total hidden layers), 512 neurons wide, trained on 1-hot data for 400k episodes
+    - 128_neuron_trained_rook_qnet.pt: 3 Linear layers (2 total hidden layers), 128 neurons wide, trained on 1-hot data for 400k episodes
+    - 1_layer_trained_rook_qnet.pt: 2 Linear layers (1 total hidden layer), 512 neurons wide, trained on 1-hot data for 400k episodes
+    - bigger_trained_rook_qnet.pt: old, training was not 1-hot. Trained against random opponent, not smart opponent.
+    - trained_rook_qnet.pt: very old, only 256 wide, not 1-hot. Trained against random opponent, not smart opponent. Not recommended for use for any purpose
+
+AUTOENCODERS:
+    - small_topk_trained_autoencoder.pt: 1024 neurons, trained on 128_neuron_trained_rook_qnet.pt, K = 20. Fairly high-fidelty loss-wise. ~800 dead neurons.
+    - 4096_neuron_trained_autoencoder.pt: 4096 neurons, trained on smarter_trained_rook_qnet.pt, l_1 sparsity penalty = 5*10^-10 (yes, I know it's exceedingly low, but see next point). Performs fairly decently, but vast majority (on the order of 4000) of neurons are dead. Resampled three times during training (training was 400k episodes, resampled after each 100k episodes).
+    - Other stuff is generally too old. (TODO: add more detail here?)
