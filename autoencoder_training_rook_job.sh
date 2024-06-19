@@ -22,7 +22,7 @@ echo "job is starting on `hostname`"
 
 module load python/3.11.6 # TODO is this right?
 module load anaconda3_gpu
-conda init # TODO is this necessary?
+conda init # is this necessary?
 conda activate gymrl
 
 export TORCH_SHOW_CPP_STACKTRACE=1
