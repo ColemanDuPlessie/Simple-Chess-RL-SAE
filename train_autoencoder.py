@@ -55,7 +55,7 @@ def main(in_path=DEFAULT_QNET_PATH, out_path=DEFAULT_OUT_PATH, topk_k = None, pr
     env = gym.make('RookCheckmate-v0', random_opponent=False, one_hot_observation_space=True)
     q = t.load(in_path, map_location=device)
     
-    use_topk = (topk_k == None or topk_k <= 0)
+    use_topk = topk_k > 0
     autoencoder = QNetAutoencoder(pretrained_hidden_size, hidden_size, loss_sparsity_term = SPARSITY_TERM, topk_activation = use_topk, k = topk_k).to(device)
 
     print_interval = 20
