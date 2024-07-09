@@ -30,7 +30,7 @@ DEFAULT_QNET_PATH = "128_neuron_trained_rook_qnet.pt"
 DEFAULT_OUT_PATH = "small_topk_trained_autoencoder.pt"
 
 num_episodes = 400000
-resampling_points = []# [100000, 200000, 300000]
+resampling_points = [100000, 200000, 300000]
 resampling_prep_duration = 30000
 resampling_prep_points = [point-resampling_prep_duration for point in resampling_points]
 
@@ -40,7 +40,7 @@ SPARSITY_TERM = 0 # 0.0000000005
 DEFAULT_TOPK_K = 20
 
 DEFAULT_PRETRAINED_HIDDEN_SIZE = 128
-DEFAULT_HIDDEN_SIZE = 512
+DEFAULT_HIDDEN_SIZE = 1024
 BATCH_SIZE = 2048
 
 def train_one_epoch(autoencoder, optimizer, data):
