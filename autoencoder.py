@@ -13,13 +13,17 @@ class QNetAutoencoder(nn.Module):
         pretrained_load_path: Optional[str] = None,
         loss_sparsity_term: float = 0.01,
         topk_activation: bool = False,
-        k: int = 16
+        k: int = 16,
+        init_decoder_transpose = False
     ):
         super().__init__()
 
         self.in_layer = nn.Linear(in_size, hidden_size)
         self.activation_func = self.topk_act_func if topk_activation else nn.ReLU()
-        self.out_layer = nn.utils.parametrizations.weight_norm(nn.Linear(hidden_size, in_size), name='weight')
+        if init_decoder_transpose:
+            pass # TODO
+        else:
+            self.out_layer = nn.utils.parametrizations.weight_norm(nn.Linear(hidden_size, in_size), name='weight')
         self.out_layer.parametrizations.weight.original0 = nn.Parameter(t.ones(1, in_size), requires_grad = False)
         
         self.in_size = in_size

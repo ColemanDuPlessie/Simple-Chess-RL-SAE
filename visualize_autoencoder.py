@@ -17,11 +17,13 @@ device = "cuda" if t.cuda.is_available() else "cpu"
 
 root = tk.Tk()
 
+FREQUENT_ACTIVATION_THRESHOLD = 0.5
+
 BOARD_SIZE = 5
 ONE_HOT = True
 
 QNET_PATH = "128_neuron_trained_rook_qnet.pt"
-AUTOENCODER_PATH = "small_topk_trained_autoencoder.pt"      
+AUTOENCODER_PATH = "trained_models/resampled_trained_autoencoders/k20.pt"      
             
 TOPK_ACT = True
 K = 20
@@ -41,7 +43,7 @@ def ints_to_hex(r, g, b):
     return "#" + hex(int(r)*16**4+int(g)*16**2+int(b))[2:].zfill(6)
 
 class FeatureExplorer:
-    def __init__(self, tk_root, activations, ablations, q=None, autoencoder=None):
+    def __init__(self, tk_root, activations, ablations, q=None, autoencoder=None, high_activating=None):
         self.root = tk_root
         self.board_size = BOARD_SIZE-1 # Note that this is 1 less than the actual board size: it's the maximum number of spaces a rook can possibly move in a straight line
         self.frame = tk.Frame(tk_root)
@@ -76,6 +78,12 @@ class FeatureExplorer:
         self.label.grid(row=9, column=0)
         self.page_input.grid(row=9, column=1)
         self.max_activation_button.grid(row=9, column=2, columnspan=3)
+        
+        if high_activating is not None and any(high_activating):
+            self.high_activating = high_activating
+            self.no_high_activating_button = tk.Button(self.frame, text="Autoencoder w/o frequently-activating features", width=45, command=self.view_move_with_autoencoder_no_high_activating)
+            self.no_high_activating_button.grid(row=10, column=1, columnspan=3)
+        
         self.frame.pack()
         
         self.current_feature_inspecting = -1
@@ -183,6 +191,17 @@ class FeatureExplorer:
         out = self.q.activations_to_out(activation)
         self._draw_ablations(out, scale=self.SQUARE_SIZE, canv=self.canvas, highlight=True)
     
+    def view_move_with_autoencoder_no_high_activating(self):
+        board_state = self._get_play_board_state()
+        activation = self.q.get_activations(t.from_numpy(board_state).float().to(device))
+        features = self.autoencoder.get_features(activation)
+        for i in range(len(features)):
+            if self.high_activating[i]:
+                features[i] = 0
+        activation = self.autoencoder.features_to_out(features)
+        out = self.q.activations_to_out(activation)
+        self._draw_ablations(out, scale=self.SQUARE_SIZE, canv=self.canvas, highlight=True)
+    
     def view_move_without_ablation(self):
         feat_num = int(self.feature_input.get("1.0", "end-1c").split()[0])
         board_state = self._get_play_board_state()
@@ -256,19 +275,31 @@ def gen_ablations(activation, q, autoencoder):
     
     return ablation_effects
 
-def graph_hist_feat_acts(feat_acts):
+def graph_hist_feat_acts(feat_acts, autoencoder):
     num_feats = feat_acts[0].shape[0]
     num_samples = len(feat_acts)
     act_counts = t.zeros(num_feats)
     zero = t.zeros(num_feats)
+    acts = []
     for act in feat_acts:
-        acted = t.gt(act, zero)
+        acted = t.gt(autoencoder.activation_func(act), zero)
+        acts.append(autoencoder.activation_func(act))
         act_counts += acted
     act_counts = t.clamp(act_counts, min=0.01) # This is to prevent log10(0) = -inf. instead, it will be 2 OOMs below the lowest "real" activation
+    for i in range(act_counts.shape[0]):
+        if act_counts[i] >= 1 and act_counts[i] <= 10:
+            print(f"Feature {i} is very sparse!")
+            for idx in range(100): # TODO I wanted to keep this quick
+                if acts[idx][i] > 0:
+                    print(f"Activates on board {idx} with value {acts[idx][i]}")
     act_freqs = act_counts / num_samples
     act_log_freqs = t.log10(act_freqs)
     plt.hist(act_log_freqs)
+    plt.xlabel("log_10 of activation frequency")
+    plt.ylabel("# of neurons")
+    plt.title(f"Activation frequency in top-k autoencoder, K={K}")
     plt.show() # TODO make this pretty
+    return act_freqs
 
 def main():
     q = t.load(QNET_PATH, map_location=device)
@@ -284,7 +315,8 @@ def main():
     
     print("Generated activations, now generating generic ablations...")
     
-    graph_hist_feat_acts(feature_activations)
+    act_freqs = graph_hist_feat_acts(feature_activations, autoencoder)
+    highly_active = t.gt(act_freqs, FREQUENT_ACTIVATION_THRESHOLD)
     
     feature_tensor = t.stack(feature_activations, dim=0)
     mean_activation = t.mean(feature_tensor, dim=0)
@@ -293,7 +325,7 @@ def main():
     # ablation_effects = gen_ablations(mean_activation, q, autoencoder)
     
     print(f"Data successfully generated! Input a feature # (up to but not including {HIDDEN_SIZE}) to see a visualization of that feature.")
-    f = FeatureExplorer(root, (board_states, feature_activations), None, q, autoencoder)
+    f = FeatureExplorer(root, (board_states, feature_activations), None, q, autoencoder, high_activating=highly_active)
     root.mainloop()
         
 
