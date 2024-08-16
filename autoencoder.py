@@ -21,7 +21,9 @@ class QNetAutoencoder(nn.Module):
         self.in_layer = nn.Linear(in_size, hidden_size)
         self.activation_func = self.topk_act_func if topk_activation else nn.ReLU()
         if init_decoder_transpose:
-            pass # TODO
+            temp = nn.Linear(hidden_size, in_size)
+            temp.weight.copy_(self.in_layer.weight.t())
+            self.out_layer = nn.utils.parametrizations.weight_norm(temp, name='weight')
         else:
             self.out_layer = nn.utils.parametrizations.weight_norm(nn.Linear(hidden_size, in_size), name='weight')
         self.out_layer.parametrizations.weight.original0 = nn.Parameter(t.ones(1, in_size), requires_grad = False)

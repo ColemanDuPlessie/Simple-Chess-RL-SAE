@@ -33,6 +33,7 @@ num_episodes = 400000
 resampling_points = [100000, 200000, 300000]
 resampling_prep_duration = 30000
 resampling_prep_points = [point-resampling_prep_duration for point in resampling_points]
+init_transpose = True
 
 LEARNING_RATE = 0.001
 
@@ -56,7 +57,7 @@ def main(in_path=DEFAULT_QNET_PATH, out_path=DEFAULT_OUT_PATH, topk_k = None, pr
     q = t.load(in_path, map_location=device)
     
     use_topk = topk_k > 0
-    autoencoder = QNetAutoencoder(pretrained_hidden_size, hidden_size, loss_sparsity_term = SPARSITY_TERM, topk_activation = use_topk, k = topk_k).to(device)
+    autoencoder = QNetAutoencoder(pretrained_hidden_size, hidden_size, loss_sparsity_term = SPARSITY_TERM, topk_activation = use_topk, k = topk_k, init_decoder_transpose=init_transpose).to(device)
 
     print_interval = 20
     score = 0.0  
