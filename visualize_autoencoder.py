@@ -23,7 +23,7 @@ BOARD_SIZE = 5
 ONE_HOT = True
 
 QNET_PATH = "128_neuron_trained_rook_qnet.pt"
-AUTOENCODER_PATH = "trained_models/resampled_trained_autoencoders/k20.pt"      
+AUTOENCODER_PATH = "trained_models/transpose_initialized_autoencoders/k20.pt"      
             
 TOPK_ACT = True
 K = 20
