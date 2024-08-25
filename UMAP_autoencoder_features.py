@@ -20,7 +20,7 @@ device = "cuda" if t.cuda.is_available() else "cpu"
 QNET_PATH = "128_neuron_trained_rook_qnet.pt"
 
 ASK_FOR_AUTOENCODER_PATH = False
-DEFAULT_AUTOENCODER_PATH = "trained_models/transpose_initialized_autoencoders/k20v2.pt"      
+DEFAULT_AUTOENCODER_PATH = "trained_models/transpose_initialized_autoencoders/k20.pt"      
 
 TOPK_ACT = True
 K = 20            

@@ -17,7 +17,8 @@ device = "cuda" if t.cuda.is_available() else "cpu"
 
 root = tk.Tk()
 
-FREQUENT_ACTIVATION_THRESHOLD = 0.5
+FREQUENT_ACTIVATION_THRESHOLD = 0.0141
+KILL_INFREQUENT = True
 
 BOARD_SIZE = 5
 ONE_HOT = True
@@ -294,7 +295,7 @@ def graph_hist_feat_acts(feat_acts, autoencoder):
                     print(f"Activates on board {idx} with value {acts[idx][i]}")
     act_freqs = act_counts / num_samples
     act_log_freqs = t.log10(act_freqs)
-    plt.hist(act_log_freqs)
+    plt.hist(act_log_freqs, bins=20)
     plt.xlabel("log_10 of activation frequency")
     plt.ylabel("# of neurons")
     plt.title(f"Activation frequency in top-k autoencoder, K={K}")
@@ -316,7 +317,8 @@ def main():
     print("Generated activations, now generating generic ablations...")
     
     act_freqs = graph_hist_feat_acts(feature_activations, autoencoder)
-    highly_active = t.gt(act_freqs, FREQUENT_ACTIVATION_THRESHOLD)
+    active_func = t.lt if KILL_INFREQUENT else t.gt
+    highly_active = active_func(act_freqs, FREQUENT_ACTIVATION_THRESHOLD) # TODO rename; name is misleading
     
     feature_tensor = t.stack(feature_activations, dim=0)
     mean_activation = t.mean(feature_tensor, dim=0)
