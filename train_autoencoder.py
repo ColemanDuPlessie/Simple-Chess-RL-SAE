@@ -9,7 +9,7 @@ import gym
 import torch as t
 
 from autoencoder import QNetAutoencoder
-from train_dqn import AtariQnet, device
+from train_dqn import CheckmateQnet, device
 
 def convert_to_one_hot(sample, board_size=5):
     out = [np.zeros(board_size**2) for i in range(3)]
