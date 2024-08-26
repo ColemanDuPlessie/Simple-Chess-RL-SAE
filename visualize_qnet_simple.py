@@ -2,7 +2,7 @@ import envs
 import numpy as np
 import gym
 import torch
-from train_dqn import CheckmateQnet, ugly_kludge_layer_that_doesnt_really_exist
+from train_dqn import AtariQnet, ugly_kludge_layer_that_doesnt_really_exist
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 

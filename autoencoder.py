@@ -141,9 +141,9 @@ class QNetAutoencoder(nn.Module):
             self.load_state_dict(t.load(path, map_location=device))
 
 if __name__ == "__main__":
-    from train_dqn import CheckmateQnet
+    from train_dqn import AtariQnet
     from train_autoencoder import gen_all_board_state_tensors
-    q = CheckmateQnet(24, 75, 512)
+    q = AtariQnet(24, 75, 512)
     a = QNetAutoencoder(512, 2024)
     a.prepare_for_resampling()
     rand_in = t.rand(16, 75)
