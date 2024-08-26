@@ -129,9 +129,9 @@ def ugly_kludge_layer_that_doesnt_really_exist(in_data):
     """
     return in_data
 
-class AtariQnet(nn.Module):
+class CheckmateQnet(nn.Module):
     def __init__(self, action_size=ACTION_SPACE_SIZE, observation_size=6, hidden_size=128, single_layer=False):
-        super(AtariQnet, self).__init__()
+        super(CheckmateQnet, self).__init__()
         self.fc1 = nn.Linear(observation_size, hidden_size)
         self.fc2 = ugly_kludge_layer_that_doesnt_really_exist if single_layer else nn.Linear(hidden_size, hidden_size)
         self.fc3 = nn.Linear(hidden_size, action_size)
@@ -177,8 +177,8 @@ def train(q, q_target, memory, optimizer):
 
 def main():
     env = gym.make('RookCheckmate-v0', random_opponent=False, one_hot_observation_space=ONE_HOT_OBS_SPACE)
-    q = AtariQnet(hidden_size=512, observation_size=OBS_SIZE, single_layer=SINGLE_LAYER).to(device)
-    q_target = AtariQnet(hidden_size=512, observation_size=OBS_SIZE, single_layer=SINGLE_LAYER).to(device)
+    q = CheckmateQnet(hidden_size=512, observation_size=OBS_SIZE, single_layer=SINGLE_LAYER).to(device)
+    q_target = CheckmateQnet(hidden_size=512, observation_size=OBS_SIZE, single_layer=SINGLE_LAYER).to(device)
     q_target.load_state_dict(q.state_dict())
     memory = ReplayBuffer()
 

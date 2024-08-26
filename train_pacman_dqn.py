@@ -113,7 +113,7 @@ def train(q, q_target, memory, optimizer):
         optimizer.step()
 
 def main():
-    env = gym.make('ALE/Amidar-v5', obs_type="rgb")
+    env = gym.make('ALE/MsPacman-v5', obs_type="rgb")
     q = AtariQnet(hidden_size=512, observation_size=OBS_SIZE, single_layer=SINGLE_LAYER).to(device)
     q_target = AtariQnet(hidden_size=512, observation_size=OBS_SIZE, single_layer=SINGLE_LAYER).to(device)
     q_target.load_state_dict(q.state_dict())
