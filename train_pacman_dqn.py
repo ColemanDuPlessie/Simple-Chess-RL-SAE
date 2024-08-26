@@ -13,10 +13,7 @@ import torch.optim as optim
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
-ONE_HOT_OBS_SPACE = True
-BOARD_SIZE = 5
-OBS_SIZE = BOARD_SIZE**2*3 if ONE_HOT_OBS_SPACE else 6
-ACTION_SPACE_SIZE = 8+(BOARD_SIZE-1)*4
+ACTION_SPACE_SIZE = 9
 
 #Hyperparameters
 num_episodes  = 400000
@@ -54,8 +51,8 @@ class ReplayBuffer():
 class AtariQnet(nn.Module):
     def __init__(self, action_size=ACTION_SPACE_SIZE, hidden_size=512):
         super(AtariQnet, self).__init__()
-        # Input data is shape(1, 210, 160)
-        self.conv1 = nn.Conv2d(1, 16, 9, stride=2) # Data is now shape(16, 101, 76)
+        # Input data is shape(3, 210, 160)
+        self.conv1 = nn.Conv2d(3, 16, 9, stride=2) # Data is now shape(16, 101, 76)
         self.pool1 = nn.MaxPool2d(2, stride=2) # Data is now shape(16, 50, 37)
         self.conv2 = nn.Conv2d(16, 32, 9, stride=3) # Data is now shape(32, 14, 10).
         self.conv3 = nn.Conv2d(32, 64, 6, stride=2) # Data is now shape(64, 5, 3). Flatten to shape(960)
@@ -65,10 +62,10 @@ class AtariQnet(nn.Module):
 
     def forward(self, x):
         x = F.relu(self.conv1(x))
-        x = self.pool(x)
+        x = self.pool1(x)
         x = F.relu(self.conv2(x))
         x = F.relu(self.conv3(x))
-        x = t.flatten(x, -3) # Flatten all dims (except batch, if it exists) into one
+        x = torch.flatten(x, -3) # Flatten all dims (except batch, if it exists) into one
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         x = self.fc3(x)
@@ -114,8 +111,8 @@ def train(q, q_target, memory, optimizer):
 
 def main():
     env = gym.make('ALE/MsPacman-v5', obs_type="rgb")
-    q = AtariQnet(hidden_size=512, observation_size=OBS_SIZE, single_layer=SINGLE_LAYER).to(device)
-    q_target = AtariQnet(hidden_size=512, observation_size=OBS_SIZE, single_layer=SINGLE_LAYER).to(device)
+    q = AtariQnet(hidden_size=512).to(device)
+    q_target = AtariQnet(hidden_size=512).to(device)
     q_target.load_state_dict(q.state_dict())
     memory = ReplayBuffer()
 
@@ -132,7 +129,7 @@ def main():
         while not done:
             a = q.sample_action(torch.from_numpy(s).float().to(device), epsilon)
             obs, r, done, truncated, info = env.step(a)
-            s_prime = np.concatenate(tuple(obs.values()))
+            s_prime = np.transpose(obs, (2, 0, 1))
             done_mask = 0.0 if done else 1.0
             memory.put((s,a,r/100.0,s_prime, done_mask))
             s = s_prime
