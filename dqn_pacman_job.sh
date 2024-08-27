@@ -5,7 +5,7 @@
 #SBATCH --cpus-per-task=64           # number of cores per tasks
 #SBATCH --gres=gpu:4                 # number of gpus
 #SBATCH --time 4:00:00              # maximum execution time (HH:MM:SS)
-#SBATCH --output=delta_logs/train_rook_checkmate_DQN.out           # output file name
+#SBATCH --output=delta_logs/train_pacman_DQN.out           # output file name
 #SBATCH --partition=gpuA100x4
 #SBATCH --mem=208G
 #SBATCH --constraint="scratch"
