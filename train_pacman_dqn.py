@@ -16,7 +16,7 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 ACTION_SPACE_SIZE = 9
 
 #Hyperparameters
-num_episodes  = 40000
+num_episodes  = 20000
 learning_rate = 0.0005
 gamma         = 0.98
 buffer_limit  = 50000
@@ -96,22 +96,19 @@ class AtariQnet(nn.Module):
         self.load_state_dict(torch.load(path, map_location=device))
             
 def train(q, q_target, memory, optimizer):
-    for i in range(10):
-        print(f"Starting step {i} of 10 in training")
+    print("Training...")
+    for i in range(5):
         s,a,r,s_prime,done_mask = memory.sample(batch_size)
-        print("Sampling complete!")
 
         q_out = q(s)
         q_a = q_out.gather(1,a)
         max_q_prime = q_target(s_prime).max(1)[0].unsqueeze(1)
         target = r + gamma * max_q_prime * done_mask
         loss = F.smooth_l1_loss(q_a, target)
-        print("Loss calculated!")
         
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-        print("Optimizer step complete!")
 
 def main():
     env = gym.make('ALE/MsPacman-v5', obs_type="rgb")# , max_episode_steps=1000)
@@ -123,8 +120,10 @@ def main():
     print_interval = 20
     score = 0.0  
     optimizer = optim.Adam(q.parameters(), lr=learning_rate)
-
+    print("Beginning training!")
     for n_epi in range(num_episodes):
+        if n_epi < 50:
+            print(f"Starting episode {n_epi}")
         epsilon = max(0.01, 0.08 - 0.01*(14*n_epi/num_episodes)) #Linear annealing from 8% to 1% over the first half of training
         obs, _ = env.reset()
         s = np.transpose(obs, (2, 0, 1)) # Move from color-last to color-first
@@ -140,7 +139,6 @@ def main():
 
             score += r
             if done:
-                print(f"Episode {n_epi} finished!\n")
                 break
             
         if memory.size()>2000:

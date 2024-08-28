@@ -4,7 +4,7 @@
 #SBATCH --ntasks-per-node=1          # crucial - only 1 task per dist per node!
 #SBATCH --cpus-per-task=64           # number of cores per tasks
 #SBATCH --gres=gpu:4                 # number of gpus
-#SBATCH --time 4:00:00              # maximum execution time (HH:MM:SS)
+#SBATCH --time 12:00:00              # maximum execution time (HH:MM:SS)
 #SBATCH --output=delta_logs/train_pacman_DQN.out           # output file name
 #SBATCH --partition=gpuA100x4
 #SBATCH --mem=208G
