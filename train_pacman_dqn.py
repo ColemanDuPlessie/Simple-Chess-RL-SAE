@@ -73,16 +73,16 @@ class AtariQnet(nn.Module):
     
     def get_activations(self, x):
         x = F.relu(self.conv1(x))
-        x = self.pool(x)
+        x = self.pool1(x)
         x = F.relu(self.conv2(x))
         x = F.relu(self.conv3(x))
-        x = t.flatten(x, -3) # Flatten all dims (except batch, if it exists) into one
+        x = torch.flatten(x, -3) # Flatten all dims (except batch, if it exists) into one
         x = F.relu(self.fc1(x))
-        x = self.fc2(x)
+        x = F.relu(self.fc2(x))
         return x
     
     def activations_to_out(self, acts):
-        return self.fc3(F.relu(acts))
+        return self.fc3(acts)
       
     def sample_action(self, obs, epsilon):
         out = self.forward(obs)
