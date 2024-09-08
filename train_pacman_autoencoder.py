@@ -28,7 +28,7 @@ resampling_points = [] # TODO [5000, 10000, 15000]
 resampling_prep_duration = 1500
 resampling_prep_points = [point-resampling_prep_duration for point in resampling_points]
 init_transpose = True
-
+aw
 LEARNING_RATE = 0.001
 
 SPARSITY_TERM = 0 # 0.0000000005
