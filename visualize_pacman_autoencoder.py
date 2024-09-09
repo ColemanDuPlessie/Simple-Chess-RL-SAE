@@ -53,28 +53,40 @@ class ControlPanel:
         self.MAX_COLOR = np.array((0, 0, 255))
     
     def init_control_panel(self):
+        self.autoencoder_verbose = tk.BooleanVar()
+    
         self.frame = tk.Frame(self.root)
         self.step_button = tk.Button(self.frame, text="Step", width=5, command=self.step)
         self.manual_step_label = tk.Label(self.frame, text="Step in a forced direction with arrow keys (make sure this window is focused!)")
         self.backstep_button = tk.Button(self.frame, text="Step reverse (SLOW!)", width=20, command=self.backstep)
         self.move_input = tk.Text(self.frame, width=2, height=1)
         self.step_manual = tk.Button(self.frame, text="Step in chosen direction", width=20, command=self.step_input)
-        self.canv_label = tk.Label(self.frame, text="DQN next move weights")
-        self.canvas = tk.Canvas(self.frame, width=200, height=200, bg="#aabbcc")
-        self.autoencoder_canv_label = tk.Label(self.frame, text="Autoencoder next move weights")
-        self.autoencoder_canvas = tk.Canvas(self.frame, width=200, height=200, bg="#ffeedd")
-        self.diff_canv_label = tk.Label(self.frame, text="Autoencoder move weights minus DQN move weights")
-        self.diff_canvas = tk.Canvas(self.frame, width=200, height=200, bg="#ffffff")
+        self.autoencoder_verbose_checkbox = tk.Checkbutton(self.frame, text="List active autoencoder features?", variable=self.autoencoder_verbose, onvalue=True, offvalue=False)
+        self.canv_frame = tk.Frame(self.frame)
+        self.generic_canv_frame = tk.Frame(self.canv_frame)
+        self.canv_label = tk.Label(self.generic_canv_frame, text="DQN next move weights")
+        self.canvas = tk.Canvas(self.generic_canv_frame, width=200, height=200, bg="#aabbcc")
+        self.autoencoder_canv_frame = tk.Frame(self.canv_frame)
+        self.autoencoder_canv_label = tk.Label(self.autoencoder_canv_frame, text="Autoencoder next move weights")
+        self.autoencoder_canvas = tk.Canvas(self.autoencoder_canv_frame, width=200, height=200, bg="#ffeedd")
+        self.diff_canv_frame = tk.Frame(self.canv_frame)
+        self.diff_canv_label = tk.Label(self.diff_canv_frame, text="Autoencoder move minus DQN move")
+        self.diff_canvas = tk.Canvas(self.diff_canv_frame, width=200, height=200, bg="#ffffff")
         
         self.step_button.pack()
         self.manual_step_label.pack()
         self.backstep_button.pack()
         self.move_input.pack()
         self.step_manual.pack()
+        self.autoencoder_verbose_checkbox.pack()
+        self.canv_frame.pack()
+        self.generic_canv_frame.pack(side="left")
         self.canv_label.pack()
         self.canvas.pack()
+        self.autoencoder_canv_frame.pack(side="left")
         self.autoencoder_canv_label.pack()
         self.autoencoder_canvas.pack()
+        self.diff_canv_frame.pack(side="left")
         self.diff_canv_label.pack()
         self.diff_canvas.pack()
         self.frame.pack()
@@ -109,9 +121,10 @@ class ControlPanel:
         activation = self.q.get_activations(torch.from_numpy(np.transpose(obs, (2, 0, 1))).float())
         features = self.autoencoder.get_features(activation)
         if verbose:
+            post_act_func_feats = self.autoencoder.activation_func(features)
             for i in range(len(features)):
-                if features[i] > 0:
-                    print(f"Feature {i} is active with value {features[i]}!")
+                if post_act_func_feats[i] != 0.0:
+                    print(f"Feature {i} is active with value {post_act_func_feats[i]}!")
         activation = self.autoencoder.features_to_out(features)
         out = self.q.activations_to_out(activation)
         return out
@@ -121,7 +134,7 @@ class ControlPanel:
         self.step_direction(move)
         predicted_move = self.q(torch.from_numpy(np.transpose(self.obs, (2, 0, 1))).float())
         self._draw_canvas(predicted_move, self.canvas)
-        autoencoder_predicted_move = self._get_autoencoder_predicted_move(self.obs)
+        autoencoder_predicted_move = self._get_autoencoder_predicted_move(self.obs, verbose=self.autoencoder_verbose.get())
         self._draw_canvas(autoencoder_predicted_move, self.autoencoder_canvas)
         predicted_move_diff = autoencoder_predicted_move - predicted_move
         self._draw_canvas(predicted_move_diff, self.diff_canvas, highlight=False)
