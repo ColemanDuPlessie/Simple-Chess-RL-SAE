@@ -124,7 +124,7 @@ def main():
     for n_epi in range(num_episodes):
         if n_epi < 50:
             print(f"Starting episode {n_epi}")
-        epsilon = max(0.01, 0.08 - 0.01*(14*n_epi/num_episodes)) #Linear annealing from 8% to 1% over the first half of training
+        epsilon = max(0.05, 0.20 - 0.05*(14*n_epi/num_episodes)) #Linear annealing from 20% to 5% over the first half of training
         obs, _ = env.reset()
         s = np.transpose(obs, (2, 0, 1)) # Move from color-last to color-first
         done = False
@@ -151,7 +151,7 @@ def main():
             score = 0.0
     env.close()
     
-    torch.save(q, "pacman_qnet.pt")
+    torch.save(q, "robust_pacman_qnet.pt")
 
 if __name__ == '__main__':
     main()
