@@ -1,9 +1,11 @@
 import numpy as np
 import tkinter as tk
+import matplotlib.pyplot as plt
 import gym
 import torch
 from autoencoder import QNetAutoencoder
 from train_pacman_dqn import AtariQnet
+from tqdm import tqdm
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -45,6 +47,8 @@ class ControlPanel:
         self.obs = self.env.reset()[0]
         self.move_list = []
         self.end_state = False
+        self.feat_act_board_states = None
+        self.feat_acts = None
         
         self.init_control_panel()
         
@@ -62,6 +66,7 @@ class ControlPanel:
         self.move_input = tk.Text(self.frame, width=2, height=1)
         self.step_manual = tk.Button(self.frame, text="Step in chosen direction", width=20, command=self.step_input)
         self.autoencoder_verbose_checkbox = tk.Checkbutton(self.frame, text="List active autoencoder features?", variable=self.autoencoder_verbose, onvalue=True, offvalue=False)
+        
         self.canv_frame = tk.Frame(self.frame)
         self.generic_canv_frame = tk.Frame(self.canv_frame)
         self.canv_label = tk.Label(self.generic_canv_frame, text="DQN next move weights")
@@ -72,6 +77,14 @@ class ControlPanel:
         self.diff_canv_frame = tk.Frame(self.canv_frame)
         self.diff_canv_label = tk.Label(self.diff_canv_frame, text="Autoencoder move minus DQN move")
         self.diff_canvas = tk.Canvas(self.diff_canv_frame, width=200, height=200, bg="#ffffff")
+        
+        self.ablation_canv_frame = tk.Frame(self.frame)
+        self.ablation_label = tk.Label(self.ablation_canv_frame, text="As above, but with feature below ablated")
+        self.ablation_input = tk.Text(self.ablation_canv_frame, width=5, height=1)
+        self.ablation_autoencoder_canvas = tk.Canvas(self.ablation_canv_frame, width=200, height=200, bg="#ffeedd")
+        self.ablation_diff_canvas = tk.Canvas(self.ablation_canv_frame, width=200, height=200, bg="#ffffff")
+        
+        self.gen_feat_acts_button = tk.Button(self.frame, text="Generate feature activations (using 10 games, takes multiple minutes)", command=self.gen_feat_acts)
         
         self.step_button.pack()
         self.manual_step_label.pack()
@@ -89,6 +102,12 @@ class ControlPanel:
         self.diff_canv_frame.pack(side="left")
         self.diff_canv_label.pack()
         self.diff_canvas.pack()
+        self.ablation_canv_frame.pack()
+        self.ablation_label.pack()
+        self.ablation_input.pack()
+        self.ablation_autoencoder_canvas.pack(side="left")
+        self.ablation_diff_canvas.pack(side="right")
+        self.gen_feat_acts_button.pack()
         self.frame.pack()
         
         self.root.bind("<KeyRelease-Left>", self.step_left)
@@ -117,15 +136,17 @@ class ControlPanel:
     def step_input(self):
         self.step_direction(int(self.move_input.get("1.0", "end-1c").split()[0]))
     
-    def _get_autoencoder_predicted_move(self, obs, verbose=False):
+    def _get_autoencoder_predicted_move(self, obs, verbose=False, ablated=-1):
         activation = self.q.get_activations(torch.from_numpy(np.transpose(obs, (2, 0, 1))).float())
         features = self.autoencoder.get_features(activation)
+        post_act_func_feats = self.autoencoder.activation_func(features)
         if verbose:
-            post_act_func_feats = self.autoencoder.activation_func(features)
             for i in range(len(features)):
                 if post_act_func_feats[i] != 0.0:
                     print(f"Feature {i} is active with value {post_act_func_feats[i]}!")
-        activation = self.autoencoder.features_to_out(features)
+        if ablated >= 0:
+            post_act_func_feats[ablated] = 0
+        activation = self.autoencoder.out_layer(post_act_func_feats)
         out = self.q.activations_to_out(activation)
         return out
     
@@ -138,6 +159,14 @@ class ControlPanel:
         self._draw_canvas(autoencoder_predicted_move, self.autoencoder_canvas)
         predicted_move_diff = autoencoder_predicted_move - predicted_move
         self._draw_canvas(predicted_move_diff, self.diff_canvas, highlight=False)
+        
+        ablation_input = self.ablation_input.get("1.0", "end-1c").split()
+        ablated_neuron = int(ablation_input[0]) if len(ablation_input) > 0 else -1
+        if ablated_neuron >= 0 and ablated_neuron < HIDDEN_SIZE:
+            autoencoder_ablated_move = self._get_autoencoder_predicted_move(self.obs, ablated=ablated_neuron)
+            self._draw_canvas(autoencoder_ablated_move, self.ablation_autoencoder_canvas)
+            predicted_ablated_diff = autoencoder_ablated_move - predicted_move
+            self._draw_canvas(predicted_ablated_diff, self.ablation_diff_canvas, highlight=False)
     
     def step_left(self, event): self.step_direction(3)
     def step_right(self, event): self.step_direction(2)
@@ -167,6 +196,80 @@ class ControlPanel:
         for move in self.move_list[:-1]:
             self.env.step(move)
         obs = self.env.step(self.move_list[-1])[0]
+    
+    def gen_feat_acts(self):
+        if self.feat_acts is None:
+            self.feat_act_board_states, self.feat_acts = gen_feature_activations(10, self.q, self.autoencoder, 0.1)
+            self.activation_counts = torch.zeros(self.autoencoder.hidden_size)
+            for game in range(len(self.feat_acts)):
+                for step in range(len(self.feat_acts[game])):
+                    activations = self.feat_acts[game][step]
+                    activated = torch.logical_not(torch.eq(activations, 0.0))
+                    self.activation_counts += activated
+            num_samples = sum(len(game) for game in self.feat_acts)
+            self.activation_freqs = self.activation_counts / num_samples
+            self.clamped_act_freqs = torch.clamp(self.activation_freqs, min=0.01/num_samples)
+        act_log_freqs = torch.log10(self.clamped_act_freqs)
+        plt.hist(act_log_freqs, bins=20)
+        plt.xlabel("log_10 of activation frequency")
+        plt.ylabel("# of neurons")
+        plt.title(f"Activation frequency (TODO)")
+        plt.show() # TODO make this pretty
+
+def gen_feature_activations(num_epis, q, autoencoder, epsilon=0.05):
+    game_states = [] # This is a list of lists, each of which represents the moves taken in one game
+    feat_acts = [] # The Nth element of the Mth element of this list is the activations that led to the Nth game state of the Mth game
+    game = gym.make("ALE/MsPacman-v5", repeat_action_probability=0.0)
+    obs = game.reset()[0]
+    
+    for i in tqdm(range(num_epis)):
+        done = False
+        moves = []
+        feats = []
+        while not done:
+            a = q.sample_action(torch.from_numpy(np.transpose(obs, (2, 0, 1))).float().to(device), epsilon)
+            moves.append(a)
+            out = game.step(a)
+            obs = out[0]
+            done = out[2]
+            
+            activation = q.get_activations(torch.from_numpy(np.transpose(obs, (2, 0, 1))).float())
+            features = autoencoder.activation_func(autoencoder.get_features(activation))
+            feats.append(features)
+            
+        game_states.append(moves)
+        feat_acts.append(feats)
+        obs = game.reset()[0]
+    return game_states, feat_acts
+
+"""
+def gen_feat_acts(q, autoencoder):
+    board_states = gen_all_board_states(5, 3) # 13,800 unique states, counting rotations and reflections
+    
+    feature_activations = []
+    losses = []
+    batch_num = 0
+
+    for n_state in range(len(board_states)):
+        s = board_states[n_state]
+        if ONE_HOT: s = convert_to_one_hot(s)
+        s_tensor = t.from_numpy(s).float().to(device)
+        feature_activations.append(autoencoder.get_features(q.get_activations(s_tensor)))
+        
+    return board_states, feature_activations
+    
+def graph_hist_feat_acts(feat_acts, autoencoder):
+    num_feats = feat_acts[0].shape[0]
+    num_samples = len(feat_acts)
+    act_counts = t.zeros(num_feats)
+    zero = t.zeros(num_feats)
+    acts = []
+    for act in feat_acts:
+        acted = t.gt(autoencoder.activation_func(act), zero)
+        acts.append(autoencoder.activation_func(act))
+        act_counts += acted
+    act_counts = t.clamp(act_counts, min=0.01)
+"""
         
 
 def main():
