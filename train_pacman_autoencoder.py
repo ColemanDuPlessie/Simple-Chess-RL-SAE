@@ -20,7 +20,7 @@ def gen_all_board_state_tensors(board_size=5, pieces=3):
     ans = permutations(spaces, pieces)
     return t.stack([t.from_numpy(convert_to_one_hot(np.concatenate(pos), board_size)).float().to(device) for pos in ans])
 
-DEFAULT_QNET_PATH = "pacman_qnet.pt"
+DEFAULT_QNET_PATH = "robust_pacman_qnet.pt"
 DEFAULT_OUT_PATH = "trained_models/pacman/first_autoencoder.pt"
 
 num_episodes = 20000
@@ -28,7 +28,7 @@ resampling_points = [] # TODO [5000, 10000, 15000]
 resampling_prep_duration = 1500
 resampling_prep_points = [point-resampling_prep_duration for point in resampling_points]
 init_transpose = True
-aw
+
 LEARNING_RATE = 0.001
 
 SPARSITY_TERM = 0 # 0.0000000005
