@@ -9,14 +9,14 @@ from tqdm import tqdm
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
-QNET_PATH = "pacman_qnet.pt"
+QNET_PATH = "robust_pacman_qnet.pt"
 
-AUTOENCODER_PATH = "trained_models/pacman/first_autoencoder.pt"
+AUTOENCODER_PATH = "trained_models/pacman/robust_autoencoder.pt"
 
 PRETRAINED_HIDDEN_SIZE = 512
 HIDDEN_SIZE = 2048
 TOPK_ACT = True
-K = 20
+K = 50
 
 DIRECTIONS = {
     0: (0, 0),
@@ -199,7 +199,7 @@ class ControlPanel:
     
     def gen_feat_acts(self):
         if self.feat_acts is None:
-            self.feat_act_board_states, self.feat_acts = gen_feature_activations(10, self.q, self.autoencoder, 0.1)
+            self.feat_act_board_states, self.feat_acts = gen_feature_activations(10, self.q, self.autoencoder, 0.5)
             self.activation_counts = torch.zeros(self.autoencoder.hidden_size)
             for game in range(len(self.feat_acts)):
                 for step in range(len(self.feat_acts[game])):
@@ -241,36 +241,6 @@ def gen_feature_activations(num_epis, q, autoencoder, epsilon=0.05):
         feat_acts.append(feats)
         obs = game.reset()[0]
     return game_states, feat_acts
-
-"""
-def gen_feat_acts(q, autoencoder):
-    board_states = gen_all_board_states(5, 3) # 13,800 unique states, counting rotations and reflections
-    
-    feature_activations = []
-    losses = []
-    batch_num = 0
-
-    for n_state in range(len(board_states)):
-        s = board_states[n_state]
-        if ONE_HOT: s = convert_to_one_hot(s)
-        s_tensor = t.from_numpy(s).float().to(device)
-        feature_activations.append(autoencoder.get_features(q.get_activations(s_tensor)))
-        
-    return board_states, feature_activations
-    
-def graph_hist_feat_acts(feat_acts, autoencoder):
-    num_feats = feat_acts[0].shape[0]
-    num_samples = len(feat_acts)
-    act_counts = t.zeros(num_feats)
-    zero = t.zeros(num_feats)
-    acts = []
-    for act in feat_acts:
-        acted = t.gt(autoencoder.activation_func(act), zero)
-        acts.append(autoencoder.activation_func(act))
-        act_counts += acted
-    act_counts = t.clamp(act_counts, min=0.01)
-"""
-        
 
 def main():
     root = tk.Tk()

@@ -5,7 +5,7 @@ from train_pacman_dqn import AtariQnet
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
-QNET_PATH = "pacman_qnet.pt"
+QNET_PATH = "robust_pacman_qnet.pt"
             
 num_steps = 10000
 
