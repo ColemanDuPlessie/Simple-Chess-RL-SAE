@@ -91,7 +91,8 @@ class ControlPanel:
         
         self.gen_feat_acts_button = tk.Button(self.frame, text="Get feature activations (using 10 games, takes multiple minutes)", command=self.gen_feat_acts)
         self.load_feat_acts_checkbox = tk.Checkbutton(self.frame, text="Load, not generate, feature activations (1000, not 10)", variable=self.premade_feat_acts, onvalue=True, offvalue=False)
-        self.get_max_feat_setup_button = tk.Button(self.frame, text="Get max activating game state of feature below", command=self.play_max_activating_game)
+        self.get_max_feat_setup_button = tk.Button(self.frame, text="Get max activating game state of feature above", command=self.play_max_activating_game)
+        self.get_act_fraction_button = tk.Button(self.frame, text="Get number of game states feature above activates on", command=self.get_act_fraction)
         
         self.step_button.pack()
         self.manual_step_label.pack()
@@ -111,12 +112,13 @@ class ControlPanel:
         self.diff_canvas.pack()
         self.ablation_canv_frame.pack()
         self.ablation_label.pack()
-        self.get_max_feat_setup_button.pack()
         self.ablation_input.pack()
         self.ablation_autoencoder_canvas.pack(side="left")
         self.ablation_diff_canvas.pack(side="right")
         self.gen_feat_acts_button.pack()
         self.load_feat_acts_checkbox.pack()
+        self.get_max_feat_setup_button.pack()
+        self.get_act_fraction_button.pack()
         self.frame.pack()
         
         self.root.bind("<KeyRelease-Left>", self.step_left)
@@ -230,28 +232,38 @@ class ControlPanel:
         plt.title(f"Activation frequency (TODO)")
         plt.show() # TODO make this pretty
     
+    def get_act_fraction(self):
+        feat_input = self.ablation_input.get("1.0", "end-1c").split()
+        feat_target = int(feat_input[0]) if len(feat_input) > 0 else -1
+        if feat_target == -1: return
+        
+        print(f"Feature {feat_target} activates on {self.activation_counts[feat_target]} board states, {100*self.activation_freqs[feat_target]}% of all board states tested!")
+    
     def get_max_act_setups(self, feat, num_acts=10):
         if self.feat_acts is None: self.gen_feat_acts()
         max_act_values = [-999999 for i in range(num_acts)] # -999999 is just an arbitrarily large negative number. In praactice, things should almost never go below 0. This list is not necessarily sorted until the end of this function.
         max_act_locations = [None for i in range(num_acts)] # The Nth element of this corresponds to the Nth element of max_act_values
-        for episode_idx in range(len(self.feat_acts)):
+        for episode_idx in range(self.feat_acts.size(0)):
             episode_acts = self.feat_acts[episode_idx].squeeze()
             for step in range(len(episode_acts)):
                 act = episode_acts[step][feat].item()
                 if act > min(max_act_values):
                     modified_idx = min(range(num_acts), key=max_act_values.__getitem__)
                     max_act_values[modified_idx] = act
-                    max_act_locations[midified_idx] = (episode_idx, step)
+                    max_act_locations[modified_idx] = (episode_idx, step)
         max_act_locations = [location for values, location in sorted(zip(max_act_values, max_act_locations), key=lambda pair: pair[0], reverse=True)]
         max_act_values = sorted(max_act_values, reverse=True)
-        max_act_setups = [self.feat_act_board_states[location[0]][:location[1]] for location in max_act_locations]
+        max_act_setups = [self.feat_act_board_states[location[0]].squeeze()[:location[1]] for location in max_act_locations]
         return max_act_setups, max_act_values
     
     def play_max_activating_game(self):
         feat_input = self.ablation_input.get("1.0", "end-1c").split()
-        feat_target = int(ablation_input[0]) if len(ablation_input) > 0 else -1
+        feat_target = int(feat_input[0]) if len(feat_input) > 0 else -1
         if feat_target == -1: return
+        
         max_act_setup, max_act_value = self.get_max_act_setups(feat_target, num_acts=1)
+        max_act_setup = max_act_setup[0]
+        max_act_value = max_act_value[0]
         
         self.env.reset()
         self.move_list = self.move_list[:-1]
@@ -262,7 +274,7 @@ class ControlPanel:
                 self.step_direction(0)
         
         for move in max_act_setup:
-            self.step_direction(move)
+            self.step_direction(int(move.item()))
         self.draw_predicted_next_move()
         
 def gen_feature_activations(num_epis, q, autoencoder, epsilon=0.05):
