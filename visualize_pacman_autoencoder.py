@@ -93,6 +93,7 @@ class ControlPanel:
         self.load_feat_acts_checkbox = tk.Checkbutton(self.frame, text="Load, not generate, feature activations (1000, not 10)", variable=self.premade_feat_acts, onvalue=True, offvalue=False)
         self.get_max_feat_setup_button = tk.Button(self.frame, text="Get max activating game state of feature above", command=self.play_max_activating_game)
         self.get_act_fraction_button = tk.Button(self.frame, text="Get number of game states feature above activates on", command=self.get_act_fraction)
+        self.get_nth_feat_setup_button = tk.Button(self.frame, text="Get Nth highest activating game state of feature above", command=self.play_nth_activating_game)
         
         self.step_button.pack()
         self.manual_step_label.pack()
@@ -119,6 +120,7 @@ class ControlPanel:
         self.load_feat_acts_checkbox.pack()
         self.get_max_feat_setup_button.pack()
         self.get_act_fraction_button.pack()
+        self.get_nth_feat_setup_button.pack()
         self.frame.pack()
         
         self.root.bind("<KeyRelease-Left>", self.step_left)
@@ -266,7 +268,30 @@ class ControlPanel:
         max_act_value = max_act_value[0]
         
         self.env.reset()
-        self.move_list = self.move_list[:-1]
+        self.move_list = []
+        self.end_state = False
+        
+        if self.premade_feat_acts.get():
+            for i in range(LOADED_IGNORED_STEPS):
+                self.step_direction(0)
+        
+        for move in max_act_setup:
+            self.step_direction(int(move.item()))
+        self.draw_predicted_next_move()
+    
+    def play_nth_activating_game(self):
+        feat_input = self.ablation_input.get("1.0", "end-1c").split()
+        feat_target = int(feat_input[0]) if len(feat_input) > 0 else -1
+        if feat_target == -1: return
+        
+        n = int(self.move_input.get("1.0", "end-1c").split()[0])
+        
+        max_act_setup, max_act_value = self.get_max_act_setups(feat_target, num_acts=n)
+        max_act_setup = max_act_setup[n-1]
+        max_act_value = max_act_value[n-1]
+        
+        self.env.reset()
+        self.move_list = []
         self.end_state = False
         
         if self.premade_feat_acts.get():

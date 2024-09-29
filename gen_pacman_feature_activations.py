@@ -18,8 +18,7 @@ HIDDEN_SIZE = 2048
 TOPK_ACT = True
 K = 50
 
-GAME_STATES_OUT_PATH = "feature_activations/1000_games.pt"
-FEAT_ACTS_OUT_PATH   = "feature_activations/1000_games_feat_acts.pt"
+OUT_FOLDER_PATH = "feature_activations/highlights/"
 
 def gen_feature_activations(num_epis, q, autoencoder, epsilon=0.05):
     game_states = None # This is a 2D Tensor, each row representing the moves taken in one game
@@ -59,6 +58,47 @@ def gen_feature_activations(num_epis, q, autoencoder, epsilon=0.05):
             feat_acts = torch.cat((feat_acts, torch.nested.nested_tensor([feats.unsqueeze(0)])))
         obs = game.reset()[0]
     return game_states, feat_acts
+
+def get_act_freqs(feat_acts):
+    hidden_dim = feat_acts[0].squeeze()[0].size(0)
+    counts = torch.zeros(hidden_dim)
+    num_steps = 0
+    for game in feat_acts:
+        num_steps += game.squeeze().size(0)
+        for step in game.squeeze():
+            counts += torch.gt(step, 0.0)
+    freqs = counts / num_steps
+    return freqs, counts, num_steps
+
+def get_max_act_paths(feat_acts, act_counts, num_saved=20, require_different_games=True):
+    """
+    An act_path is a tuple of the form: (actiation strength, game #, step #)
+    act_paths will contain the num_saved highest-activating act_paths for any given neuron.
+    If the neuron activates on less than num_saved different frames, all active frames will be returned.
+    If require_different_games is True, only the highest activating frame of each game may be included.
+    """
+    num_feats = len(act_counts)
+    act_paths = [None if act_counts[i] == 0.0 else [(0.0, -1, -1) for j in range(min((num_saved, act_counts[i])))] for i in range(num_feats)]
+    min_idxs = [0 for i in range(num_feats)]
+    for feat in range(num_feats): # TODO This should probably be a vector operation, not a loop
+        if act_counts[feat] > 0:
+            min_act = 0.0
+            min_idx = 0
+            for game_idx, game in enumerate(feat_acts):
+                for step_idx, step in enumerate(game.squeeze()):
+                    if step[feat] > min_act:
+                        if require_different_games and any(game_idx == act[1] and act[0] >= step[feat] for act in act_paths[feat]):
+                            continue # Ignore this activation if we already have a better one from this game.
+                        act_paths[min_idx] = (step[feat], game_idx, step_idx)
+                        min_idx, min_act = min(enumerate(act_paths[min_idx]), key = lambda x: x[1][0])
+    return act_paths
+
+def expand_path(path, games_history):
+    return games_history[path[1]][:path[2]]
+    
+def save_neuron_max_activations(neuron_act_paths, games_history, filename):
+    expanded_paths = [expand_path(path, games_history) for path in neuron_act_paths]
+    torch.save(expanded_paths, filename)
     
 def main():
     
@@ -68,10 +108,20 @@ def main():
     autoencoder.load_pretrained(AUTOENCODER_PATH)
     autoencoder.eval()
     
-    game_states, feat_acts = gen_feature_activations(1000, q, autoencoder, epsilon=0.2)
+    game_states, feat_acts = gen_feature_activations(10000, q, autoencoder, epsilon=0.2)
     
-    torch.save(game_states, GAME_STATES_OUT_PATH)
-    torch.save(feat_acts, FEAT_ACTS_OUT_PATH)
+    freqs, counts, num_steps = get_act_freqs(feat_acts)
+    max_act_paths = get_max_act_paths(feat_acts, counts, num_saved=25, require_different_games=True)
+    
+    torch.save(counts, OUT_FOLDER_PATH+"act_counts.pt")
+    torch.save(freqs, OUT_FOLDER_PATH+"act_frequencies.pt")
+    
+    with open(OUT_FOLDER_PATH+"num_steps_surveyed.txt") as f:
+        f.write((str)num_steps)
+    
+    for feat in range(HIDDEN_SIZE):
+        if counts[feat] != 0:
+            save_neuron_max_activations(max_act_paths[feat], game_states, f"{OUT_FOLDER_PATH}neuron_{feat}_activations.pt")
 
 if __name__ == "__main__":
     main()
