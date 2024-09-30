@@ -41,7 +41,7 @@ def gen_feature_activations(num_epis, q, autoencoder, epsilon=0.05):
             if step_num <= STEPS_TO_IGNORE:
                 continue
             moves.append(a)
-            activation = q.get_activations(torch.from_numpy(np.transpose(obs, (2, 0, 1))).float())
+            activation = q.get_activations(torch.from_numpy(np.transpose(obs, (2, 0, 1))).float().to(device))
             features = autoencoder.activation_func(autoencoder.get_features(activation))
             if feats is None:
                 feats = features.unsqueeze(0)
@@ -61,7 +61,7 @@ def gen_feature_activations(num_epis, q, autoencoder, epsilon=0.05):
 
 def get_act_freqs(feat_acts):
     hidden_dim = feat_acts[0].squeeze()[0].size(0)
-    counts = torch.zeros(hidden_dim)
+    counts = torch.zeros(hidden_dim).to(dtype=torch.long, device=device)
     num_steps = 0
     for game in feat_acts:
         num_steps += game.squeeze().size(0)
@@ -77,10 +77,10 @@ def get_max_act_paths(feat_acts, act_counts, num_saved=20, require_different_gam
     If the neuron activates on less than num_saved different frames, all active frames will be returned.
     If require_different_games is True, only the highest activating frame of each game may be included.
     """
-    num_feats = len(act_counts)
+    num_feats = act_counts.size(0)
     act_paths = [None if act_counts[i] == 0.0 else [(0.0, -1, -1) for j in range(min((num_saved, act_counts[i])))] for i in range(num_feats)]
     min_idxs = [0 for i in range(num_feats)]
-    for feat in range(num_feats): # TODO This should probably be a vector operation, not a loop
+    for feat in tqdm(range(num_feats)): # TODO This should probably be a vector operation, not a loop
         if act_counts[feat] > 0:
             min_act = 0.0
             min_idx = 0
@@ -89,15 +89,15 @@ def get_max_act_paths(feat_acts, act_counts, num_saved=20, require_different_gam
                     if step[feat] > min_act:
                         if require_different_games and any(game_idx == act[1] and act[0] >= step[feat] for act in act_paths[feat]):
                             continue # Ignore this activation if we already have a better one from this game.
-                        act_paths[min_idx] = (step[feat], game_idx, step_idx)
-                        min_idx, min_act = min(enumerate(act_paths[min_idx]), key = lambda x: x[1][0])
+                        act_paths[feat][min_idx] = (step[feat], game_idx, step_idx)
+                        min_idx, min_act = min(enumerate(act_paths[feat][min_idx]), key = lambda x: x[0])
     return act_paths
 
 def expand_path(path, games_history):
     return games_history[path[1]][:path[2]]
     
 def save_neuron_max_activations(neuron_act_paths, games_history, filename):
-    expanded_paths = [expand_path(path, games_history) for path in neuron_act_paths]
+    expanded_paths = [expand_path(path, games_history) for path in neuron_act_paths if path[1] != -1]
     torch.save(expanded_paths, filename)
     
 def main():
@@ -108,20 +108,25 @@ def main():
     autoencoder.load_pretrained(AUTOENCODER_PATH)
     autoencoder.eval()
     
-    game_states, feat_acts = gen_feature_activations(10000, q, autoencoder, epsilon=0.2)
+    game_states, feat_acts = gen_feature_activations(2500, q, autoencoder, epsilon=0.2)
     
     freqs, counts, num_steps = get_act_freqs(feat_acts)
+    print("Games finished!")
     max_act_paths = get_max_act_paths(feat_acts, counts, num_saved=25, require_different_games=True)
+    print("Max activation paths found!")
     
     torch.save(counts, OUT_FOLDER_PATH+"act_counts.pt")
     torch.save(freqs, OUT_FOLDER_PATH+"act_frequencies.pt")
     
-    with open(OUT_FOLDER_PATH+"num_steps_surveyed.txt") as f:
-        f.write((str)num_steps)
+    with open(OUT_FOLDER_PATH+"num_steps_surveyed.txt", 'w') as f:
+        f.write((str)(num_steps))
     
+    print("Summary statistics saved!")
+
     for feat in range(HIDDEN_SIZE):
         if counts[feat] != 0:
             save_neuron_max_activations(max_act_paths[feat], game_states, f"{OUT_FOLDER_PATH}neuron_{feat}_activations.pt")
+            print(f"Stats for neuron {feat} saved!")
 
 if __name__ == "__main__":
     main()
