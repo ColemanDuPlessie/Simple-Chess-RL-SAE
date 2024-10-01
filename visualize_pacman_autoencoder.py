@@ -20,6 +20,8 @@ K = 50
 
 FEAT_ACT_GAME_PATH = "feature_activations/1000_games.pt"
 FEAT_ACT_PATH = "feature_activations/1000_games_feat_acts.pt"
+FEAT_ACT_HIGHLIGHTS_PATH = "feature_activations/highlights/"
+FEAT_ACT_HIGHLIGHTS_NUM_SAMPLES = 1556654
 LOADED_IGNORED_STEPS = 66
 
 DIRECTIONS = {
@@ -63,6 +65,7 @@ class ControlPanel:
     def init_control_panel(self):
         self.autoencoder_verbose = tk.BooleanVar()
         self.premade_feat_acts = tk.BooleanVar()
+        self.premade_feat_act_highlights = tk.BooleanVar()
     
         self.frame = tk.Frame(self.root)
         self.step_button = tk.Button(self.frame, text="Step", width=5, command=self.step)
@@ -94,6 +97,7 @@ class ControlPanel:
         self.get_max_feat_setup_button = tk.Button(self.frame, text="Get max activating game state of feature above", command=self.play_max_activating_game)
         self.get_act_fraction_button = tk.Button(self.frame, text="Get number of game states feature above activates on", command=self.get_act_fraction)
         self.get_nth_feat_setup_button = tk.Button(self.frame, text="Get Nth highest activating game state of feature above", command=self.play_nth_activating_game)
+        self.load_feat_act_highlights = tk.Checkbutton(self.frame, text="Only load feature activation highlights", variable=self.premade_feat_act_highlights, onvalue=True, offvalue=False)
         
         self.step_button.pack()
         self.manual_step_label.pack()
@@ -121,6 +125,7 @@ class ControlPanel:
         self.get_max_feat_setup_button.pack()
         self.get_act_fraction_button.pack()
         self.get_nth_feat_setup_button.pack()
+        self.load_feat_act_highlights.pack()
         self.frame.pack()
         
         self.root.bind("<KeyRelease-Left>", self.step_left)
@@ -215,18 +220,24 @@ class ControlPanel:
     
     def gen_feat_acts(self):
         if self.feat_acts is None:
-            if self.premade_feat_acts.get():
-                self.feat_act_board_states, self.feat_acts = load_feature_activations(FEAT_ACT_GAME_PATH, FEAT_ACT_PATH)
+            if self.premade_feat_act_highlights.get():
+                self.feat_act_board_states, self.feat_acts = None, None
+                self.activation_counts = torch.load(FEAT_ACT_HIGHLIGHTS_PATH+f"act_counts.pt", map_location=device)
+                self.activation_freqs = torch.load(FEAT_ACT_HIGHLIGHTS_PATH+f"act_frequencies.pt", map_location=device)
+                self.clamped_act_freqs = torch.clamp(self.activation_freqs, min=0.01/FEAT_ACT_HIGHLIGHTS_NUM_SAMPLES)
             else:
-                self.feat_act_board_states, self.feat_acts = gen_feature_activations(10, self.q, self.autoencoder, 0.5)
-            self.activation_counts = torch.zeros(self.autoencoder.hidden_size)
-            for game in self.feat_acts:
-                for activations in game.squeeze():
-                    activated = torch.logical_not(torch.eq(activations, 0.0))
-                    self.activation_counts += activated
-            num_samples = sum(len(game.squeeze()) for game in self.feat_acts)
-            self.activation_freqs = self.activation_counts / num_samples
-            self.clamped_act_freqs = torch.clamp(self.activation_freqs, min=0.01/num_samples)
+                if self.premade_feat_acts.get():
+                    self.feat_act_board_states, self.feat_acts = load_feature_activations(FEAT_ACT_GAME_PATH, FEAT_ACT_PATH)
+                else:
+                    self.feat_act_board_states, self.feat_acts = gen_feature_activations(10, self.q, self.autoencoder, 0.5)
+                self.activation_counts = torch.zeros(self.autoencoder.hidden_size)
+                for game in self.feat_acts:
+                    for activations in game.squeeze():
+                        activated = torch.logical_not(torch.eq(activations, 0.0))
+                        self.activation_counts += activated
+                num_samples = sum(len(game.squeeze()) for game in self.feat_acts)
+                self.activation_freqs = self.activation_counts / num_samples
+                self.clamped_act_freqs = torch.clamp(self.activation_freqs, min=0.01/num_samples)
         act_log_freqs = torch.log10(self.clamped_act_freqs)
         plt.hist(act_log_freqs, bins=20)
         plt.xlabel("log_10 of activation frequency")
@@ -242,6 +253,8 @@ class ControlPanel:
         print(f"Feature {feat_target} activates on {self.activation_counts[feat_target]} board states, {100*self.activation_freqs[feat_target]}% of all board states tested!")
     
     def get_max_act_setups(self, feat, num_acts=10):
+        if self.premade_feat_act_highlights.get() and num_acts <= 25:
+            return torch.load(FEAT_ACT_HIGHLIGHTS_PATH+f"neuron_{feat}_activations.pt", map_location=device)[:num_acts], torch.zeros(num_acts)
         if self.feat_acts is None: self.gen_feat_acts()
         max_act_values = [-999999 for i in range(num_acts)] # -999999 is just an arbitrarily large negative number. In praactice, things should almost never go below 0. This list is not necessarily sorted until the end of this function.
         max_act_locations = [None for i in range(num_acts)] # The Nth element of this corresponds to the Nth element of max_act_values
@@ -264,14 +277,14 @@ class ControlPanel:
         if feat_target == -1: return
         
         max_act_setup, max_act_value = self.get_max_act_setups(feat_target, num_acts=1)
-        max_act_setup = max_act_setup[0]
+        max_act_setup = max_act_setup[0].squeeze()
         max_act_value = max_act_value[0]
         
         self.env.reset()
         self.move_list = []
         self.end_state = False
         
-        if self.premade_feat_acts.get():
+        if self.premade_feat_acts.get() or self.premade_feat_act_highlights.get():
             for i in range(LOADED_IGNORED_STEPS):
                 self.step_direction(0)
         
@@ -287,14 +300,14 @@ class ControlPanel:
         n = int(self.move_input.get("1.0", "end-1c").split()[0])
         
         max_act_setup, max_act_value = self.get_max_act_setups(feat_target, num_acts=n)
-        max_act_setup = max_act_setup[n-1]
+        max_act_setup = max_act_setup[n-1].squeeze()
         max_act_value = max_act_value[n-1]
         
         self.env.reset()
         self.move_list = []
         self.end_state = False
         
-        if self.premade_feat_acts.get():
+        if self.premade_feat_acts.get() or self.premade_feat_act_highlights.get():
             for i in range(LOADED_IGNORED_STEPS):
                 self.step_direction(0)
         
