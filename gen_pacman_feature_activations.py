@@ -94,12 +94,11 @@ def get_max_act_paths(feat_acts, act_counts, num_saved=20, require_different_gam
     return act_paths
 
 def expand_path(path, games_history):
-    print(f"step {path} out of {games_history[path[1]].size(0)}")
-    return games_history[path[1]][:path[2]]
+    return games_history[path[1]][0][:path[2]]
     
 def save_neuron_max_activations(neuron_act_paths, games_history, filename):
     expanded_paths = [expand_path(path, games_history) for path in neuron_act_paths if path[1] != -1]
-    # torch.save(expanded_paths, filename)
+    torch.save(expanded_paths, filename)
     
 def main():
     
@@ -116,11 +115,11 @@ def main():
     max_act_paths = get_max_act_paths(feat_acts, counts, num_saved=25, require_different_games=True)
     print("Max activation paths found!")
     
-    # torch.save(counts, OUT_FOLDER_PATH+"act_counts.pt")
-    # torch.save(freqs, OUT_FOLDER_PATH+"act_frequencies.pt")
+    torch.save(counts, OUT_FOLDER_PATH+"act_counts.pt")
+    torch.save(freqs, OUT_FOLDER_PATH+"act_frequencies.pt")
     
-    # with open(OUT_FOLDER_PATH+"num_steps_surveyed.txt", 'w') as f:
-        # f.write((str)(num_steps))
+    with open(OUT_FOLDER_PATH+"num_steps_surveyed.txt", 'w') as f:
+        f.write((str)(num_steps))
     
     print("Summary statistics saved!")
 
