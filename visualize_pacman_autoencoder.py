@@ -58,9 +58,9 @@ class ControlPanel:
         
         self.init_control_panel()
         
-        self.MIN_COLOR = np.array((255, 0, 0))
+        self.MIN_COLOR = np.array((0, 0, 255))
         self.ZERO_COLOR = np.array((127, 127, 127))
-        self.MAX_COLOR = np.array((0, 0, 255))
+        self.MAX_COLOR = np.array((255, 0, 0))
     
     def init_control_panel(self):
         self.autoencoder_verbose = tk.BooleanVar()
@@ -240,9 +240,9 @@ class ControlPanel:
                 self.clamped_act_freqs = torch.clamp(self.activation_freqs, min=0.01/num_samples)
         act_log_freqs = torch.log10(self.clamped_act_freqs)
         plt.hist(act_log_freqs, bins=20)
-        plt.xlabel("log_10 of activation frequency")
-        plt.ylabel("# of neurons")
-        plt.title(f"Activation frequency (TODO)")
+        plt.xlabel("$log_{10}$ of activation frequency")
+        plt.ylabel("# of features")
+        plt.title(f"SAE Feature Activation Frequency, All Features, K=50")
         plt.show() # TODO make this pretty
     
     def get_act_fraction(self):
@@ -254,7 +254,7 @@ class ControlPanel:
     
     def get_max_act_setups(self, feat, num_acts=10):
         if self.premade_feat_act_highlights.get() and num_acts <= 25:
-            return torch.load(FEAT_ACT_HIGHLIGHTS_PATH+f"neuron_{feat}_activations.pt", map_location=device)[:num_acts], torch.zeros(num_acts)
+            return torch.load(FEAT_ACT_HIGHLIGHTS_PATH+f"neuron_{feat}_activations.pt", map_location=device), torch.zeros(num_acts) # TODO re-add [:num_acts] slice?
         if self.feat_acts is None: self.gen_feat_acts()
         max_act_values = [-999999 for i in range(num_acts)] # -999999 is just an arbitrarily large negative number. In praactice, things should almost never go below 0. This list is not necessarily sorted until the end of this function.
         max_act_locations = [None for i in range(num_acts)] # The Nth element of this corresponds to the Nth element of max_act_values
