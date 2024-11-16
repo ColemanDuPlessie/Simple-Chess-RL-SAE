@@ -14,7 +14,8 @@ class QNetAutoencoder(nn.Module):
         loss_sparsity_term: float = 0.01,
         topk_activation: bool = False,
         k: int = 16,
-        init_decoder_transpose = False
+        init_decoder_transpose = False,
+        preencoder_bias = -1
     ):
         super().__init__()
 
@@ -40,6 +41,8 @@ class QNetAutoencoder(nn.Module):
         
         self.track_dead_neurons = False
         self.live_neurons = t.zeros(hidden_size, device=device, dtype=t.bool)
+        
+        self.preencoder_bias = preencoder_bias
 
         if pretrained_load_path is not None:
             self.load_pretrained(pretrained_load_path)
@@ -56,7 +59,7 @@ class QNetAutoencoder(nn.Module):
 
     def forward(self, x) -> Tuple[t.Tensor, t.Tensor, t.Tensor]:
         in_data = x.reshape(-1, x.shape[-1])
-        with_bias = in_data + self.out_layer.bias
+        with_bias = in_data - self.preencoder_bias * self.out_layer.bias
         acts = self.activation_func(self.in_layer(with_bias))
         if self.track_dead_neurons:
             acted = t.gt(t.sum(acts, dim=0), t.zeros(acts.shape[1:], device=device)) # This is only true for a neuron if it activated at least once
@@ -89,7 +92,7 @@ class QNetAutoencoder(nn.Module):
         with t.no_grad():
             for idx, sample in enumerate(full_dataset_in): # TODO I think this is required because we need the element-wise loss, but there's a decent chance I just forgot about an alternative, which would probably be much faster if it exists
                 preprocessed = preprocessing(sample)
-                with_bias = preprocessed + self.out_layer.bias
+                with_bias = in_data - self.preencoder_bias * self.out_layer.bias
                 out = self.out_layer(self.activation_func(self.in_layer(with_bias)))
                 loss = F.mse_loss(out, preprocessed)
                 losses.append(loss)
@@ -120,12 +123,12 @@ class QNetAutoencoder(nn.Module):
         return self.out_layer(self.activation_func(feats))
        
     def get_features(self, x):
-        with_bias = x + self.out_layer.bias
+        with_bias = in_data - self.preencoder_bias * self.out_layer.bias
         return self.in_layer(with_bias)
     
     def forward_with_feature_ablation(self, x, feat_to_ablate, ablation_function=lambda x: 0):
         in_data = x.reshape(-1, x.shape[-1])
-        with_bias = in_data + self.out_layer.bias
+        with_bias = in_data - self.preencoder_bias * self.out_layer.bias
         features = self.in_layer(with_bias)
         features[feat_to_ablate] = ablation_function(features[feat_to_ablate])
         out = self.out_layer(self.activation_func(features))
