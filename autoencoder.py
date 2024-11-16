@@ -92,7 +92,7 @@ class QNetAutoencoder(nn.Module):
         with t.no_grad():
             for idx, sample in enumerate(full_dataset_in): # TODO I think this is required because we need the element-wise loss, but there's a decent chance I just forgot about an alternative, which would probably be much faster if it exists
                 preprocessed = preprocessing(sample)
-                with_bias = in_data - self.preencoder_bias * self.out_layer.bias
+                with_bias = preprocessed - self.preencoder_bias * self.out_layer.bias
                 out = self.out_layer(self.activation_func(self.in_layer(with_bias)))
                 loss = F.mse_loss(out, preprocessed)
                 losses.append(loss)
@@ -123,7 +123,7 @@ class QNetAutoencoder(nn.Module):
         return self.out_layer(self.activation_func(feats))
        
     def get_features(self, x):
-        with_bias = in_data - self.preencoder_bias * self.out_layer.bias
+        with_bias = x - self.preencoder_bias * self.out_layer.bias
         return self.in_layer(with_bias)
     
     def forward_with_feature_ablation(self, x, feat_to_ablate, ablation_function=lambda x: 0):
