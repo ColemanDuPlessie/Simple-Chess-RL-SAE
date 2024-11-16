@@ -29,6 +29,9 @@ resampling_prep_duration = 1500
 resampling_prep_points = [point-resampling_prep_duration for point in resampling_points]
 init_transpose = True
 
+alternate_layer = True
+layers_skipped = 2
+
 LEARNING_RATE = 0.001
 
 SPARSITY_TERM = 0 # 0.0000000005
@@ -76,7 +79,10 @@ def main(in_path=DEFAULT_QNET_PATH, out_path=DEFAULT_OUT_PATH, topk_k = None, pr
         while not done:
             s_tensor = t.from_numpy(s).float().to(device)
             a = q(s_tensor).argmax().item()
-            activations.append(q.get_activations(s_tensor))
+            if alternate_layer:
+                activations.append(q.get_activations_early(s_tensor, layers_skipped))
+            else:
+                activations.append(q.get_activations(s_tensor))
             
             obs, r, done, truncated, info = env.step(a)
             s = np.transpose(obs, (2, 0, 1))

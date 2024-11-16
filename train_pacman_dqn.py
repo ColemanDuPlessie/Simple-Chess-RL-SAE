@@ -83,6 +83,39 @@ class AtariQnet(nn.Module):
     
     def activations_to_out(self, acts):
         return self.fc3(acts)
+        
+    def get_activations_early(self, x, layers_ignored=2):
+        if layers_ignored < 6:
+            x = F.relu(self.conv1(x))
+            x = self.pool1(x)
+        if layers_ignored < 5:
+            x = F.relu(self.conv2(x))
+        if layers_ignored < 4:
+            x = F.relu(self.conv3(x))
+            x = torch.flatten(x, -3) # Flatten all dims (except batch, if it exists) into one
+        if layers_ignored < 3:
+            x = F.relu(self.fc1(x))
+        if layers_ignored < 2:
+            x = F.relu(self.fc2(x))
+        if layers_ignored < 1:
+            x = self.fc3(x)
+        return x
+    
+    def early_activations_to_out(self, acts, layers=2):
+        out = acts
+        if layers >= 6:
+            out = self.pool1(F.relu(self.conv1(acts)))
+        if layers >= 5:
+            out = F.relu(self.conv2(acts))
+        if layers >= 4:
+            out = torch.flatten(F.relu(self.conv3(acts)), -3)
+        if layers >= 3:
+            out = F.relu(self.fc1(acts))
+        if layers >= 2:
+            out = F.relu(self.fc2(acts))
+        if layers >= 1:
+            out = self.fc3(acts)
+        return out
       
     def sample_action(self, obs, epsilon):
         out = self.forward(obs)
