@@ -98,7 +98,8 @@ def get_max_act_paths(feat_acts, act_counts, num_saved=20, require_different_gam
                         if require_different_games and any(game_idx == act[1] and act[0] >= step[feat] for act in act_paths[feat]):
                             continue # Ignore this activation if we already have a better one from this game.
                         act_paths[feat][min_idx] = (step[feat], game_idx, step_idx)
-                        min_idx, min_act = min(enumerate(act_paths[feat]), key = lambda x: x[1][0])
+                        min_idx, min_act_tuple = min(enumerate(act_paths[feat]), key = lambda x: x[1][0])
+                        min_act = min_act_tuple[0]
     return act_paths
 
 def expand_path(path, games_history):
