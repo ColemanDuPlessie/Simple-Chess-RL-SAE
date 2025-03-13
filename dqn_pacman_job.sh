@@ -8,7 +8,6 @@
 #SBATCH --output=delta_logs/train_pacman_DQN.out           # output file name
 #SBATCH --partition=gpuA100x4
 #SBATCH --mem=208G
-#SBATCH --constraint="scratch"
 #SBATCH --gpu-bind=closest   # select a cpu close to gpu on pci bus topology
 #SBATCH --account=bbry-delta-gpu
 #SBATCH --no-requeue
