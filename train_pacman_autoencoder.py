@@ -32,6 +32,8 @@ init_transpose = True
 alternate_layer = True
 layers_skipped = 2
 
+preencoder_bias = -1
+
 LEARNING_RATE = 0.001
 
 SPARSITY_TERM = 0 # 0.0000000005
@@ -54,7 +56,7 @@ def main(in_path=DEFAULT_QNET_PATH, out_path=DEFAULT_OUT_PATH, topk_k = None, pr
     q = t.load(in_path, map_location=device)
     
     use_topk = topk_k > 0
-    autoencoder = QNetAutoencoder(pretrained_hidden_size, hidden_size, loss_sparsity_term = SPARSITY_TERM, topk_activation = use_topk, k = topk_k, init_decoder_transpose=init_transpose).to(device)
+    autoencoder = QNetAutoencoder(pretrained_hidden_size, hidden_size, loss_sparsity_term = SPARSITY_TERM, topk_activation = use_topk, k = topk_k, init_decoder_transpose=init_transpose, preencoder_bias=preencoder_bias).to(device)
 
     print_interval = 20
     score = 0.0  
@@ -73,7 +75,7 @@ def main(in_path=DEFAULT_QNET_PATH, out_path=DEFAULT_OUT_PATH, topk_k = None, pr
             autoencoder.prepare_for_resampling()
         
         if n_epi in resampling_points: # TODO
-            autoencoder.resample(gen_all_board_state_tensors(), preprocessing=q.get_activations, verbose=True)
+            autoencoder.resample(gen_all_board_state_tensors(), preprocessing=q.get_activations, verbose=True) # TODO q.get_activations_early compatibility
             optimizer = t.optim.Adam(autoencoder.parameters(), lr=LEARNING_RATE) # TODO This doesn't seem like the most idiomatic way to reset the optimizer, but maybe it is... (c.f. https://discuss.pytorch.org/t/reset-optimizer-stats/78516/2)
 
         while not done:

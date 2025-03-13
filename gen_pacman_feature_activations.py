@@ -18,6 +18,11 @@ HIDDEN_SIZE = 2048
 TOPK_ACT = True
 K = 50
 
+alternate_layer = False
+layers_skipped = 2
+
+preencoder_bias = -1
+
 OUT_FOLDER_PATH = "feature_activations/highlights/"
 
 def gen_feature_activations(num_epis, q, autoencoder, epsilon=0.05):
@@ -41,7 +46,10 @@ def gen_feature_activations(num_epis, q, autoencoder, epsilon=0.05):
             if step_num <= STEPS_TO_IGNORE:
                 continue
             moves.append(a)
-            activation = q.get_activations(torch.from_numpy(np.transpose(obs, (2, 0, 1))).float().to(device))
+            if alternate_layer:
+                activation = q.get_activations_early(torch.from_numpy(np.transpose(obs, (2, 0, 1))).float().to(device), layers_skipped)
+            else:
+                activation = q.get_activations(torch.from_numpy(np.transpose(obs, (2, 0, 1))).float().to(device))
             features = autoencoder.activation_func(autoencoder.get_features(activation))
             if feats is None:
                 feats = features.unsqueeze(0)
@@ -104,7 +112,7 @@ def main():
     
     q = torch.load(QNET_PATH, map_location=device)
     q.eval()
-    autoencoder = QNetAutoencoder(PRETRAINED_HIDDEN_SIZE, HIDDEN_SIZE, topk_activation=TOPK_ACT, k=K).to(device)
+    autoencoder = QNetAutoencoder(PRETRAINED_HIDDEN_SIZE, HIDDEN_SIZE, topk_activation=TOPK_ACT, k=K, preencoder_bias=preencoder_bias).to(device)
     autoencoder.load_pretrained(AUTOENCODER_PATH)
     autoencoder.eval()
     

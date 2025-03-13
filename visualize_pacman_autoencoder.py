@@ -18,6 +18,11 @@ HIDDEN_SIZE = 2048
 TOPK_ACT = True
 K = 50
 
+alternate_layer = False
+layers_skipped = 2
+
+preencoder_bias = -1
+
 FEAT_ACT_GAME_PATH = "feature_activations/1000_games.pt"
 FEAT_ACT_PATH = "feature_activations/1000_games_feat_acts.pt"
 FEAT_ACT_HIGHLIGHTS_PATH = "feature_activations/highlights/"
@@ -155,7 +160,10 @@ class ControlPanel:
         self.step_direction(int(self.move_input.get("1.0", "end-1c").split()[0]))
     
     def _get_autoencoder_predicted_move(self, obs, verbose=False, ablated=-1):
-        activation = self.q.get_activations(torch.from_numpy(np.transpose(obs, (2, 0, 1))).float())
+        if alternate_layer:
+            activation = self.q.get_activations_early(torch.from_numpy(np.transpose(obs, (2, 0, 1))).float(), layers_skipped)
+        else:
+            activation = self.q.get_activations(torch.from_numpy(np.transpose(obs, (2, 0, 1))).float())
         features = self.autoencoder.get_features(activation)
         post_act_func_feats = self.autoencoder.activation_func(features)
         if verbose:
@@ -165,7 +173,10 @@ class ControlPanel:
         if ablated >= 0:
             post_act_func_feats[ablated] = 0
         activation = self.autoencoder.out_layer(post_act_func_feats)
-        out = self.q.activations_to_out(activation)
+        if alternate_layer:
+            out = self.q.early_activations_to_out(activation, layers_skipped)
+        else:
+            out = self.q.activations_to_out(activation)
         return out
     
     def draw_predicted_next_move(self):
@@ -332,7 +343,10 @@ def gen_feature_activations(num_epis, q, autoencoder, epsilon=0.05):
             obs = out[0]
             done = out[2]
             
-            activation = q.get_activations(torch.from_numpy(np.transpose(obs, (2, 0, 1))).float())
+            if alternate_layer:
+                activation = q.get_activations_early(torch.from_numpy(np.transpose(obs, (2, 0, 1))).float(), layers_skipped)
+            else:
+                activation = q.get_activations(torch.from_numpy(np.transpose(obs, (2, 0, 1))).float())
             features = autoencoder.activation_func(autoencoder.get_features(activation))
             feats.append(features)
             
@@ -355,7 +369,7 @@ def main():
     
     q = torch.load(QNET_PATH, map_location=device)
     q.eval()
-    autoencoder = QNetAutoencoder(PRETRAINED_HIDDEN_SIZE, HIDDEN_SIZE, topk_activation=TOPK_ACT, k=K).to(device)
+    autoencoder = QNetAutoencoder(PRETRAINED_HIDDEN_SIZE, HIDDEN_SIZE, topk_activation=TOPK_ACT, k=K, preencoder_bias=preencoder_bias).to(device)
     autoencoder.load_pretrained(AUTOENCODER_PATH)
     autoencoder.eval()
     
