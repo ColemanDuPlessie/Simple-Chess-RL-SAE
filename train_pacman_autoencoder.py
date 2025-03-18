@@ -32,7 +32,7 @@ init_transpose = True
 alternate_layer = True
 layers_skipped = 2
 
-preencoder_bias = -1
+preencoder_bias = 1 # 1 = How Anthropic does it, -1 = the way my earlier experiments were run. 1 performs better.
 
 LEARNING_RATE = 0.001
 
