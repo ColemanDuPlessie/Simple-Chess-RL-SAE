@@ -21,7 +21,7 @@ def gen_all_board_state_tensors(board_size=5, pieces=3):
     return t.stack([t.from_numpy(convert_to_one_hot(np.concatenate(pos), board_size)).float().to(device) for pos in ans])
 
 DEFAULT_QNET_PATH = "robust_pacman_qnet.pt"
-DEFAULT_OUT_PATH = "trained_models/pacman/correct_preencoder_bias_autoencoder.pt"
+DEFAULT_OUT_PATH = "trained_models/pacman/later_layer_autoencoder.pt"
 
 num_episodes = 20000
 resampling_points = [] # TODO [5000, 10000, 15000]
@@ -30,7 +30,7 @@ resampling_prep_points = [point-resampling_prep_duration for point in resampling
 init_transpose = True
 
 alternate_layer = True
-layers_skipped = 2
+layers_skipped = 1
 
 preencoder_bias = -1
 
