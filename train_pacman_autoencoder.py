@@ -21,7 +21,7 @@ def gen_all_board_state_tensors(board_size=5, pieces=3):
     return t.stack([t.from_numpy(convert_to_one_hot(np.concatenate(pos), board_size)).float().to(device) for pos in ans])
 
 DEFAULT_QNET_PATH = "robust_pacman_qnet.pt"
-DEFAULT_OUT_PATH = "trained_models/pacman/later_layer_autoencoder.pt"
+DEFAULT_OUT_PATH = "trained_models/pacman/later_layer_K50_autoencoder.pt"
 
 num_episodes = 20000
 resampling_points = [] # TODO [5000, 10000, 15000]
@@ -37,7 +37,7 @@ preencoder_bias = 1 # 1 = How Anthropic does it, -1 = the way my earlier experim
 LEARNING_RATE = 0.001
 
 SPARSITY_TERM = 0 # 0.0000000005
-DEFAULT_TOPK_K = 20 # TODO
+DEFAULT_TOPK_K = 50 # TODO
 
 DEFAULT_PRETRAINED_HIDDEN_SIZE = 512
 DEFAULT_HIDDEN_SIZE = 2048
