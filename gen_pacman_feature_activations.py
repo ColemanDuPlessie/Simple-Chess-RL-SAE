@@ -9,7 +9,7 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 
 QNET_PATH = "robust_pacman_qnet.pt"
 
-AUTOENCODER_PATH = "trained_models/pacman/robust_autoencoder.pt"
+AUTOENCODER_PATH = "trained_models/pacman/earlier_layer_pacman_autoencoder.pt"
 
 STEPS_TO_IGNORE = 66 # The first 66 steps consist of a music sting while the player remains in place and can therefore be ignored.
 
@@ -18,12 +18,12 @@ HIDDEN_SIZE = 2048
 TOPK_ACT = True
 K = 50
 
-alternate_layer = False
+alternate_layer = True
 layers_skipped = 2
 
-preencoder_bias = -1
+preencoder_bias = 1
 
-OUT_FOLDER_PATH = "feature_activations/highlights/"
+OUT_FOLDER_PATH = "feature_activations/penultimate_layer_highlights/"
 
 def gen_feature_activations(num_epis, q, autoencoder, epsilon=0.05):
     game_states = None # This is a 2D Tensor, each row representing the moves taken in one game
