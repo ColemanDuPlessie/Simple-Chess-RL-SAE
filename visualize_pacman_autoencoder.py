@@ -11,17 +11,17 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 
 QNET_PATH = "robust_pacman_qnet.pt"
 
-AUTOENCODER_PATH = "trained_models/pacman/robust_autoencoder.pt"
+AUTOENCODER_PATH = "trained_models/pacman/earlier_layer_pacman_autoencoder.pt"# later_layer_K50_autoencoder.pt"
 
 PRETRAINED_HIDDEN_SIZE = 512
 HIDDEN_SIZE = 2048
 TOPK_ACT = True
 K = 50
 
-alternate_layer = False
+alternate_layer = True
 layers_skipped = 2
 
-preencoder_bias = -1
+preencoder_bias = 1
 
 FEAT_ACT_GAME_PATH = "feature_activations/1000_games.pt"
 FEAT_ACT_PATH = "feature_activations/1000_games_feat_acts.pt"

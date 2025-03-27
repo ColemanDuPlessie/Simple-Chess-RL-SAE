@@ -104,17 +104,17 @@ class AtariQnet(nn.Module):
     def early_activations_to_out(self, acts, layers=2):
         out = acts
         if layers >= 6:
-            out = self.pool1(F.relu(self.conv1(acts)))
+            out = self.pool1(F.relu(self.conv1(out)))
         if layers >= 5:
-            out = F.relu(self.conv2(acts))
+            out = F.relu(self.conv2(out))
         if layers >= 4:
-            out = torch.flatten(F.relu(self.conv3(acts)), -3)
+            out = torch.flatten(F.relu(self.conv3(out)), -3)
         if layers >= 3:
-            out = F.relu(self.fc1(acts))
+            out = F.relu(self.fc1(out))
         if layers >= 2:
-            out = F.relu(self.fc2(acts))
+            out = F.relu(self.fc2(out))
         if layers >= 1:
-            out = self.fc3(acts)
+            out = self.fc3(out)
         return out
       
     def sample_action(self, obs, epsilon):
