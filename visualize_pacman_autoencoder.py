@@ -25,8 +25,8 @@ preencoder_bias = 1
 
 FEAT_ACT_GAME_PATH = "feature_activations/1000_games.pt"
 FEAT_ACT_PATH = "feature_activations/1000_games_feat_acts.pt"
-FEAT_ACT_HIGHLIGHTS_PATH = "feature_activations/highlights/"
-FEAT_ACT_HIGHLIGHTS_NUM_SAMPLES = 1556654
+FEAT_ACT_HIGHLIGHTS_PATH = "feature_activations/penultimate_layer_highlights/"
+FEAT_ACT_HIGHLIGHTS_NUM_SAMPLES = 1556654 # TODO this number is accurate for /highlights/, but not /penultimate_layer_highlights/
 LOADED_IGNORED_STEPS = 66
 
 DIRECTIONS = {
@@ -104,6 +104,9 @@ class ControlPanel:
         self.get_nth_feat_setup_button = tk.Button(self.frame, text="Get Nth highest activating game state of feature above", command=self.play_nth_activating_game)
         self.load_feat_act_highlights = tk.Checkbutton(self.frame, text="Only load feature activation highlights", variable=self.premade_feat_act_highlights, onvalue=True, offvalue=False)
         
+        
+        self.step_ablated_button = tk.Button(self.frame, text="Step using ablated autoencoder", command=self.step_ablated)
+        
         self.step_button.pack()
         self.manual_step_label.pack()
         self.backstep_button.pack()
@@ -131,6 +134,7 @@ class ControlPanel:
         self.get_act_fraction_button.pack()
         self.get_nth_feat_setup_button.pack()
         self.load_feat_act_highlights.pack()
+        self.step_ablated_button.pack()
         self.frame.pack()
         
         self.root.bind("<KeyRelease-Left>", self.step_left)
@@ -197,6 +201,13 @@ class ControlPanel:
     
     def step(self):
         move = self.q(torch.from_numpy(np.transpose(self.obs, (2, 0, 1))).float()).argmax().item()
+        self.step_direction(move)
+        self.draw_predicted_next_move()
+    
+    def step_ablated(self):
+        ablation_input = self.ablation_input.get("1.0", "end-1c").split()
+        ablated_neuron = int(ablation_input[0]) if len(ablation_input) > 0 else -1
+        move = self._get_autoencoder_predicted_move(self.obs, ablated=ablated_neuron).argmax().item()
         self.step_direction(move)
         self.draw_predicted_next_move()
     
