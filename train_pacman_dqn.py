@@ -143,7 +143,7 @@ def train(q, q_target, memory, optimizer):
         loss.backward()
         optimizer.step()
 
-def main():
+def main(num=0):
     env = gym.make('ALE/MsPacman-v5', obs_type="rgb")# , max_episode_steps=1000)
     q = AtariQnet(hidden_size=512).to(device)
     q_target = AtariQnet(hidden_size=512).to(device)
@@ -184,7 +184,11 @@ def main():
             score = 0.0
     env.close()
     
-    torch.save(q, "robust_pacman_qnet.pt")
+    torch.save(q, "dqns/dqn" + str(num) + ".pt")
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-n", "--number", default="0", help="Number of run (in case you run several simultaneously)")
+    args = parser.parse_args()
+    print(args)
+    main(num = args.number)

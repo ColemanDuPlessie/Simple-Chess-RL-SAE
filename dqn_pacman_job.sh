@@ -5,7 +5,6 @@
 #SBATCH --cpus-per-task=64           # number of cores per tasks
 #SBATCH --gres=gpu:4                 # number of gpus
 #SBATCH --time 12:00:00              # maximum execution time (HH:MM:SS)
-#SBATCH --output=delta_logs/train_pacman_DQN.out           # output file name
 #SBATCH --partition=gpuA100x4
 #SBATCH --mem=208G
 #SBATCH --gpu-bind=closest   # select a cpu close to gpu on pci bus topology
@@ -35,4 +34,4 @@ export PYTHONPATH=$PYTHONPATH:/u/cduplessie/Simple-Chess-RL-SAE/
 
 pip3 list
 
-CUDA_VISIBLE_DEVICES=0,1,2,3 srun python3.8 train_pacman_dqn.py
+CUDA_VISIBLE_DEVICES=0,1,2,3 srun python3.8 train_pacman_dqn.py -n $1
