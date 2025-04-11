@@ -5,11 +5,18 @@ from autoencoder import QNetAutoencoder
 from train_pacman_dqn import AtariQnet
 from tqdm import tqdm
 
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument("-n", "--number", default="0", help="Number of run (in case you run several simultaneously)")
+args = parser.parse_args()
+print(args)
+
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
-QNET_PATH = "robust_pacman_qnet.pt"
+QNET_PATH = "dqns/dqn" + args.number + ".pt"
 
-AUTOENCODER_PATH = "trained_models/pacman/earlier_layer_pacman_autoencoder.pt"
+AUTOENCODER_PATH = "dqns/autoencoder" + args.number + ".pt"
 
 STEPS_TO_IGNORE = 66 # The first 66 steps consist of a music sting while the player remains in place and can therefore be ignored.
 
@@ -23,7 +30,7 @@ layers_skipped = 2
 
 preencoder_bias = 1
 
-OUT_FOLDER_PATH = "feature_activations/penultimate_layer_highlights/"
+OUT_FOLDER_PATH = "dqns/highlights" + args.number + "/"
 
 def gen_feature_activations(num_epis, q, autoencoder, epsilon=0.05):
     game_states = None # This is a 2D Tensor, each row representing the moves taken in one game
