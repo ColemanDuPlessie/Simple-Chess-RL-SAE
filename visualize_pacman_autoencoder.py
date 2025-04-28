@@ -9,9 +9,9 @@ from tqdm import tqdm
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
-QNET_PATH = "robust_pacman_qnet.pt"
+QNET_PATH = "dqns/dqn9.pt" # "robust_pacman_qnet.pt"
 
-AUTOENCODER_PATH = "trained_models/pacman/earlier_layer_pacman_autoencoder.pt"# later_layer_K50_autoencoder.pt"
+AUTOENCODER_PATH = "dqns/autoencoder9.pt" # "trained_models/pacman/earlier_layer_pacman_autoencoder.pt"# later_layer_K50_autoencoder.pt"
 
 PRETRAINED_HIDDEN_SIZE = 512
 HIDDEN_SIZE = 2048
@@ -23,10 +23,10 @@ layers_skipped = 2
 
 preencoder_bias = 1
 
-FEAT_ACT_GAME_PATH = "feature_activations/1000_games.pt"
-FEAT_ACT_PATH = "feature_activations/1000_games_feat_acts.pt"
-FEAT_ACT_HIGHLIGHTS_PATH = "feature_activations/penultimate_layer_highlights/"
-FEAT_ACT_HIGHLIGHTS_NUM_SAMPLES = 1556654 # TODO this number is accurate for /highlights/, but not /penultimate_layer_highlights/
+FEAT_ACT_GAME_PATH = "feature_activations/1000_games.pt" # TODO this should not be used
+FEAT_ACT_PATH = "feature_activations/1000_games_feat_acts.pt" # TODO this should not be used
+FEAT_ACT_HIGHLIGHTS_PATH = "dqns/highlights9/"# "feature_activations/penultimate_layer_highlights/"
+FEAT_ACT_HIGHLIGHTS_NUM_SAMPLES = 1572102 # TODO this number is accurate for /highlights/, but not /penultimate_layer_highlights/
 LOADED_IGNORED_STEPS = 66
 
 DIRECTIONS = {
