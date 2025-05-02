@@ -19,13 +19,13 @@ device = "cuda" if t.cuda.is_available() else "cpu"
 
 QNET_PATH = "128_neuron_trained_rook_qnet.pt"
 
-ASK_FOR_AUTOENCODER_PATH = False
+ASK_FOR_AUTOENCODER_PATH = True
 DEFAULT_AUTOENCODER_PATH = "trained_models/transpose_initialized_autoencoders/k20.pt"      
 
 TOPK_ACT = True
 K = 20            
-PRETRAINED_HIDDEN_SIZE = 128
-HIDDEN_SIZE = 1024
+PRETRAINED_HIDDEN_SIZE = 512
+HIDDEN_SIZE = 2048
 
 SHOW_DEAD_NEURONS = True
 IGNORE_DEAD_NEURONS = False
@@ -63,9 +63,9 @@ def main():
     reducer = umap.UMAP()
     
     if SHOW_DEAD_NEURONS:
-        colors = ["#1f77b4" if live else "#ff7f0e" for live in get_live_neurons(gen_feat_acts(q, autoencoder)[1], autoencoder)]
+        # colors = ["#1f77b4" if live else "#ff7f0e" for live in get_live_neurons(gen_feat_acts(q, autoencoder)[1], autoencoder)]
         embedding = reducer.fit_transform(data.detach().numpy())
-        plt.scatter(embedding[:, 0], embedding[:, 1], c=colors)
+        plt.scatter(embedding[:, 0], embedding[:, 1]) # , c=colors)
     elif IGNORE_DEAD_NEURONS:
         live_neurons = get_live_neurons(gen_feat_acts(q, autoencoder)[1], autoencoder)
         data = t.stack([data[idx] for idx in range(len(data)) if live_neurons[idx]])
