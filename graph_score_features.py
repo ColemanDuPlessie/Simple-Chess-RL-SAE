@@ -7,7 +7,7 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 ACT_COUNT_PATH = "dqns/summarystatsonly/s[NUM]/act_counts.pt"
 TEST_RUN_PATH = "delta_logs/autoencoder[NUM].out"
 
-runs = [str(i) for i in range(10)]
+runs = [str(i) for i in range(10)] + ["10", "12", "13", "14", "16", "17", "18", "19", "20", "22", "23", "24", "26", "27"]
 
 def count_live_features(path):
     data = torch.load(path, map_location = device)
@@ -35,9 +35,14 @@ def main():
     estimated_para = np.polyfit(feature_counts, scores, 2)
     est_para_value = lambda lst: [estimated_para[0]*x**2 + estimated_para[1]*x + estimated_para[2] for x in lst]
     
-    plt.scatter(feature_counts, scores)
+    old_estimated_para = np.polyfit(feature_counts[:10], scores[:10], 2)
+    old_est_para_value = lambda lst: [old_estimated_para[0]*x**2 + old_estimated_para[1]*x + old_estimated_para[2] for x in lst]
+    
+    plt.scatter(feature_counts[:10], scores[:10])
+    plt.scatter(feature_counts[10:], scores[10:])
     plt.plot(sorted(feature_counts), est_value(sorted(feature_counts)), "r--")
     plt.plot(range(min(feature_counts), max(feature_counts)+1), est_para_value(range(min(feature_counts), max(feature_counts)+1)), "g--")
+    plt.plot(range(min(feature_counts), max(feature_counts)+1), old_est_para_value(range(min(feature_counts), max(feature_counts)+1)), "b--")
     # plt.xlim(0, 2048)
     plt.ylim(0, 2500)
     plt.show()
