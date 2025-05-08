@@ -1,0 +1,46 @@
+/* General formatting */
+
+h1 {
+    background: #495bff;
+    padding: 20pt;
+    margin-right: -8px;
+    margin-left: -8px;
+    margin-top: -8px;
+    margin-bottom: 24px;
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    box-sizing: border-box;
+    color: #000000;
+    font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    font-size: 16px;
+}
+
+#content {
+    width: 70em;
+    line-height: 1.25em;
+    margin-left: 16px;
+    margin-right: 16px;
+    border-width: 2px;
+    border-style: solid;
+    border-radius: 8px;
+    border-color: #888888;
+    padding: 8px;
+}
+
+#featureList {
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+}
+
+img {
+    display: inline-block;
+    margin: 4px;
+}
+
+div.imgHolder {
+    display: block;
+}
