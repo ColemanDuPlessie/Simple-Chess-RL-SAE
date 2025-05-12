@@ -33,13 +33,16 @@ def load_highlight_histories(feat):
 def get_highlight_game(feat, num): # num ranges from 0 to 24, where 0 is the highest-activating gamestate, 1 is the second-highest, etc.
     return load_highlight_histories(feat)[num].squeeze()
 
-def save_game_png(env, feat, num, path):
+def save_game_png(env, feat, num, path, q=None):
     steps = get_highlight_game(feat, num)
     env.reset()
     for i in range(LOADED_IGNORED_STEPS):
         env.step(0)
     for step in steps:
-        env.step(int(step.item()))
+        o, a, b, c, d = env.step(int(step.item()))
+    if q is not None:
+        move = get_dqn_predicted_move(q, o).argmax().item()
+        o, a, b, c, d = env.step(int(move))
     env.env.ale.saveScreenPNG(path)
 
 def get_autoencoder_predicted_move(q, a, obs, ablated=-1):
@@ -116,19 +119,23 @@ def draw_canvas(weights, highlight=False):
     root.update_idletasks()
     root.update()
 
-def save_feat_act_png(env, feat, num, path, q, a):
+def save_feat_act_png(env, feat, num, path, q, a, game_state_path=None):
     steps = get_highlight_game(feat, num)
     env.reset()
     for i in range(LOADED_IGNORED_STEPS):
         env.step(0)
     for step in steps:
         o, r, t, t2, i = env.step(int(step.item()))
+    move = get_dqn_predicted_move(q, o).argmax().item()
+    o, r, t, t2, i = env.step(int(move))
     q_acts = get_dqn_predicted_move(q, o)
     a_acts = get_autoencoder_predicted_move(q, a, o)
     ablated_acts = get_autoencoder_predicted_move(q, a, o, feat)
     ablated_a_diff = ablated_acts-a_acts
     ablated_q_diff = ablated_acts-q_acts
     draw_canvas(ablated_a_diff)
+    if game_state_path is not None:
+        env.env.ale.saveScreenPNG(game_state_path)
     time.sleep(0.1)
     save_canv(path)
 
@@ -141,13 +148,14 @@ def main():
     q.eval()
     o, i = e.reset()
     
-    for feat_num in tqdm(range(1337, 2048)):
+    for feat_num in tqdm(range(1853, 2048)):
         if os.path.isfile(HIGHLIGHT_PATH+f"neuron_{feat_num}_activations.pt"):
-            if not os.path.isfile(f"imgs/feat_{feat_num}/0.png"):
-                os.mkdir(f"imgs/feat_{feat_num}/")
             try:
+                if not os.path.isfile(f"imgs/feat_{feat_num}/0.png"):
+                    os.mkdir(f"imgs/feat_{feat_num}/")
                 for act_num in range(25):
-                    save_feat_act_png(e, feat_num, act_num, f"imgs/feat_{feat_num}/act_{act_num}.png", q, a)
+                    # save_game_png(e, feat_num, act_num, f"imgs/feat_{feat_num}/{act_num}.png", q)
+                    save_feat_act_png(e, feat_num, act_num, f"imgs/feat_{feat_num}/act_{act_num}.png", q, a, game_state_path=f"imgs/feat_{feat_num}/{act_num}.png")
             except Exception as error:
                 pass
                 print("\n\n\nERROR: " + str(error))
