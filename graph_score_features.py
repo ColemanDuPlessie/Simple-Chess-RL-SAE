@@ -1,6 +1,8 @@
 import torch
 import matplotlib.pyplot as plt
 import numpy as np
+from sklearn.metrics import r2_score
+import statsmodels.api as sm
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -38,13 +40,27 @@ def main():
     old_estimated_para = np.polyfit(feature_counts[:10], scores[:10], 2)
     old_est_para_value = lambda lst: [old_estimated_para[0]*x**2 + old_estimated_para[1]*x + old_estimated_para[2] for x in lst]
     
-    plt.scatter(feature_counts[:10], scores[:10])
-    plt.scatter(feature_counts[10:], scores[10:])
-    plt.plot(sorted(feature_counts), est_value(sorted(feature_counts)), "r--")
-    plt.plot(range(min(feature_counts), max(feature_counts)+1), est_para_value(range(min(feature_counts), max(feature_counts)+1)), "g--")
-    plt.plot(range(min(feature_counts), max(feature_counts)+1), old_est_para_value(range(min(feature_counts), max(feature_counts)+1)), "b--")
+    r2 = r2_score(scores, est_para_value(feature_counts))
+    print("R^2 score is: " + str(r2))
+    
+    X = np.column_stack(([c**2 for c in feature_counts], feature_counts))
+    X = sm.add_constant(X)
+    model = sm.OLS(scores, X).fit()
+    print(model.summary())
+    print("Overall p-value: " + str(model.f_pvalue))
+    
+    # plt.scatter(feature_counts[:10], scores[:10])
+    # plt.scatter(feature_counts[10:], scores[10:])
+    # plt.plot(sorted(feature_counts), est_value(sorted(feature_counts)), "r--")
+    plt.plot(range(min(feature_counts), max(feature_counts)+1), est_para_value(range(min(feature_counts), max(feature_counts)+1)), "r", linewidth="1.0")
+    plt.plot((512, 512), (0, 2500), "g--", linewidth="1.0")
+    # plt.plot(range(min(feature_counts), max(feature_counts)+1), old_est_para_value(range(min(feature_counts), max(feature_counts)+1)), "b--")
+    plt.scatter(feature_counts, scores, zorder=999)
     # plt.xlim(0, 2048)
     plt.ylim(0, 2500)
+    plt.xlabel("Live features")
+    plt.ylabel("DQN average score")
+    plt.title("Autoencoder Features vs. DQN Performance")
     plt.show()
 
 if __name__ == "__main__":

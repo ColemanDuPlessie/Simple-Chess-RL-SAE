@@ -76,7 +76,7 @@ class ControlPanel:
         self.step_button = tk.Button(self.frame, text="Step", width=5, command=self.step)
         self.manual_step_label = tk.Label(self.frame, text="Step in a forced direction with arrow keys (make sure this window is focused!)")
         self.backstep_button = tk.Button(self.frame, text="Step reverse (SLOW!)", width=20, command=self.backstep)
-        self.move_input = tk.Text(self.frame, width=2, height=1)
+        self.move_input = tk.Text(self.frame, width=6, height=1)
         self.step_manual = tk.Button(self.frame, text="Step in chosen direction", width=20, command=self.step_input)
         self.autoencoder_verbose_checkbox = tk.Checkbutton(self.frame, text="List active autoencoder features?", variable=self.autoencoder_verbose, onvalue=True, offvalue=False)
         
@@ -92,7 +92,7 @@ class ControlPanel:
         self.diff_canvas = tk.Canvas(self.diff_canv_frame, width=200, height=200, bg="#ffffff")
         
         self.ablation_canv_frame = tk.Frame(self.frame)
-        self.ablation_label = tk.Label(self.ablation_canv_frame, text="As above, but with feature below ablated")
+        self.ablation_label = tk.Label(self.ablation_canv_frame, text="As above, but with feature below ablated (or set to value above)")
         self.ablation_input = tk.Text(self.ablation_canv_frame, width=5, height=1)
         self.ablation_autoencoder_canvas = tk.Canvas(self.ablation_canv_frame, width=200, height=200, bg="#ffeedd")
         self.ablation_diff_canvas = tk.Canvas(self.ablation_canv_frame, width=200, height=200, bg="#ffffff")
@@ -163,7 +163,7 @@ class ControlPanel:
     def step_input(self):
         self.step_direction(int(self.move_input.get("1.0", "end-1c").split()[0]))
     
-    def _get_autoencoder_predicted_move(self, obs, verbose=False, ablated=-1):
+    def _get_autoencoder_predicted_move(self, obs, verbose=False, ablated=-1, clamp_value=0):
         if alternate_layer:
             activation = self.q.get_activations_early(torch.from_numpy(np.transpose(obs, (2, 0, 1))).float(), layers_skipped)
         else:
@@ -175,7 +175,7 @@ class ControlPanel:
                 if post_act_func_feats[i] != 0.0:
                     print(f"Feature {i} is active with value {post_act_func_feats[i]}!")
         if ablated >= 0:
-            post_act_func_feats[ablated] = 0
+            post_act_func_feats[ablated] = clamp_value
         activation = self.autoencoder.out_layer(post_act_func_feats)
         if alternate_layer:
             out = self.q.early_activations_to_out(activation, layers_skipped)
@@ -194,7 +194,9 @@ class ControlPanel:
         ablation_input = self.ablation_input.get("1.0", "end-1c").split()
         ablated_neuron = int(ablation_input[0]) if len(ablation_input) > 0 else -1
         if ablated_neuron >= 0 and ablated_neuron < HIDDEN_SIZE:
-            autoencoder_ablated_move = self._get_autoencoder_predicted_move(self.obs, ablated=ablated_neuron)
+            clamp_input = self.move_input.get("1.0", "end-1c").split()
+            clamp_target = int(clamp_input[0]) if len(clamp_input) > 0 else 0
+            autoencoder_ablated_move = self._get_autoencoder_predicted_move(self.obs, ablated=ablated_neuron, clamp_value=clamp_target)
             self._draw_canvas(autoencoder_ablated_move, self.ablation_autoencoder_canvas)
             predicted_ablated_diff = autoencoder_ablated_move - predicted_move
             self._draw_canvas(predicted_ablated_diff, self.ablation_diff_canvas, highlight=False)
@@ -207,7 +209,9 @@ class ControlPanel:
     def step_ablated(self):
         ablation_input = self.ablation_input.get("1.0", "end-1c").split()
         ablated_neuron = int(ablation_input[0]) if len(ablation_input) > 0 else -1
-        move = self._get_autoencoder_predicted_move(self.obs, ablated=ablated_neuron).argmax().item()
+        clamp_input = self.move_input.get("1.0", "end-1c").split()
+        clamp_target = int(clamp_input[0]) if len(clamp_input) > 0 else 0
+        move = self._get_autoencoder_predicted_move(self.obs, ablated=ablated_neuron, clamp_value=clamp_target).argmax().item()
         self.step_direction(move)
         self.draw_predicted_next_move()
     
